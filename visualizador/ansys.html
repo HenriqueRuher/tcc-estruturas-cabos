@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulação Ansys — Catenária 3D</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Catenária 3D <span class="tag">Simulação Ansys</span></h1>
+    <p class="sub">Visualizador da simulação ANSYS · 3 cabos ligados no nó P · BEAM188 · 120 elementos · <span id="nSub"></span> substeps</p>
+  </div>
+  <div class="hdr-btns">
+    <button id="btnCena" class="ghost" type="button" title="Alternar entre modo análise e cena com torres" aria-label="Alternar cena">🗼 Cena</button>
+    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="stage" aria-label="Visualização 3D">
+    <div class="viewport" id="viewport">
+      <canvas id="cv" role="img" aria-label="Vista 3D dos três cabos pintados pela grandeza selecionada"></canvas>
+
+      <div class="toolbar" role="group" aria-label="Vistas">
+        <button type="button" data-view="iso" class="on">Isométrica</button>
+        <button type="button" data-view="front">Frontal <small>XY</small></button>
+        <button type="button" data-view="side">Lateral <small>ZY</small></button>
+        <button type="button" data-view="top">Superior <small>XZ</small></button>
+        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+      </div>
+
+      <div class="legend" id="legend">
+        <div class="lg-title"><b id="lgName"></b> <span id="lgUnit"></span></div>
+        <div class="lg-bar" id="lgBar"><i id="mkMin" title="Mínimo do passo atual"></i><i id="mkMax" title="Máximo do passo atual"></i></div>
+        <div class="lg-ticks" id="lgTicks"></div>
+      </div>
+
+      <div class="hint">arraste = girar · roda = zoom · duplo clique = reiniciar vista</div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+
+    <div class="timeline">
+      <button id="btnPrev" type="button" class="ico" title="Passo anterior (←)" aria-label="Passo anterior">⏮</button>
+      <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir">▶</button>
+      <button id="btnNext" type="button" class="ico" title="Próximo passo (→)" aria-label="Próximo passo">⏭</button>
+      <input id="slider" type="range" min="0" max="25" step="1" value="25" aria-label="Substep">
+      <div class="tl-info">
+        <b id="tlPasso"></b>
+        <span id="tlFator"></span>
+      </div>
+      <label class="speed">vel.
+        <select id="speed" aria-label="Velocidade da animação">
+          <option value="0.5">0,5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <aside class="side">
+
+    <section class="card">
+      <h2>Grandeza pintada</h2>
+      <div class="radios" id="qtyGroup" role="radiogroup" aria-label="Grandeza pintada"></div>
+      <p class="note" id="qtyNote"></p>
+      <div class="row">
+        <label>Cores
+          <select id="cmap">
+            <option value="viridis">Viridis (perceptual)</option>
+            <option value="ansys">Arco-íris (estilo ANSYS)</option>
+          </select>
+        </label>
+        <label>Escala
+          <select id="scaleMode">
+            <option value="global">Fixa (todos os passos)</option>
+            <option value="frame">Ajustada ao passo</option>
+          </select>
+        </label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="chInicial" checked> forma inicial</label>
+        <label><input type="checkbox" id="chGrid" checked> piso</label>
+        <label><input type="checkbox" id="chNos"> nós da malha</label>
+      </div>
+      <p class="note"><b>Cores:</b> Viridis tem variação de brilho uniforme (lê-se bem o valor, inclusive por daltônicos e em impressão em cinza); Arco-íris imita as figuras do ANSYS.</p>
+      <p class="note"><b>Escala:</b> “Fixa” usa o mesmo mínimo e máximo em todos os substeps, para ver a tração crescer durante o carregamento; “Ajustada ao passo” reescala a cada substep para realçar a variação ao longo do cabo. Com uma força concentrada selecionada, a escala é sempre a do próprio caso.</p>
+      <p class="note"><b>Forma inicial:</b> a parábola tracejada de onde o ANSYS parte (chute inicial). <b>Piso:</b> grade de 5 m no plano y = 0. <b>Nós da malha:</b> os 121 nós do modelo (40 elementos por trecho).</p>
+    </section>
+
+    <section class="card">
+      <h2>Modelo analítico <small>catenárias em vermelho</small></h2>
+      <div class="icon-row" id="compGroup" role="radiogroup" aria-label="Comparação com o modelo analítico">
+        <button type="button" data-comp="mef">Só ANSYS</button>
+        <button type="button" data-comp="sobrepor">ANSYS + analítica</button>
+        <button type="button" data-comp="nos">Analítica + nós ANSYS</button>
+      </div>
+      <p class="note"><b>Só ANSYS:</b> apenas o resultado do MEF. <b>ANSYS + analítica:</b> sobrepõe, em vermelho, as catenárias exatas do modelo analítico, resolvidas aqui com o mesmo sistema de 9 equações do TCC e os mesmos parâmetros. <b>Analítica + nós ANSYS:</b> mostra só a curva analítica, com os nós do MEF como pontos, para conferir a aderência nó a nó.</p>
+      <p class="note" id="compNote"></p>
+    </section>
+
+    <section class="card" id="cardCasos" hidden>
+      <h2>Força concentrada <small id="casoResumo"></small></h2>
+      <p class="note">Casos pré-calculados no ANSYS: força vertical (para baixo) em 10 posições × 10 intensidades de cada cabo. Escolha o cabo, clique na posição e ajuste a intensidade; a seta laranja no 3D mostra onde a força está aplicada, com comprimento proporcional à intensidade.</p>
+      <div class="icon-row cabo-row" id="casoCaboGrp" role="radiogroup" aria-label="Cabo carregado"></div>
+      <div class="rotulo-linha"><span>Posição ao longo do cabo</span><output id="casoPosTxt"></output></div>
+      <svg id="casoRegua" class="regua" viewBox="0 0 300 76" role="group" aria-label="Posição da força ao longo do cabo"></svg>
+      <div class="rotulo-linha"><span>Intensidade</span><output id="casoMagTxt"></output></div>
+      <div class="mag-linha">
+        <button type="button" class="passo" id="casoMagMenos" aria-label="Diminuir intensidade">−</button>
+        <input id="casoMagR" type="range" min="0" max="9" step="1" value="6" aria-label="Intensidade da força">
+        <button type="button" class="passo" id="casoMagMais" aria-label="Aumentar intensidade">+</button>
+      </div>
+      <div class="pgrid" id="casoInfo"></div>
+      <p class="note"><b>Posição:</b> fração do comprimento do cabo, medida a partir da ancoragem (C ou A); ao lado aparece o comprimento de arco real até o nó carregado. <b>Nó P final:</b> posição de equilíbrio do nó de ligação. <b>P desloca:</b> quanto P andou em relação ao mesmo modelo sem força. <b>N máx.:</b> maior força axial no cabo carregado.</p>
+      <p class="note"><b>T₀:</b> componente horizontal da tração de cada trecho. Com cargas só verticais ela é constante ao longo de um trecho; a força concentrada aumenta T₀ em todos os trechos, não só no carregado, porque o nó P redistribui o esforço.</p>
+      <p class="note warn" id="casoAviso" hidden>⚠ elemento em compressão neste caso — hipótese de rigidez à flexão nula não sustentada.</p>
+      <p class="note" id="casoNota"></p>
+    </section>
+
+    <section class="card">
+      <h2>Resultados no passo</h2>
+      <div class="pgrid" id="pBox"></div>
+      <div class="tablewrap">
+        <table class="tbl" id="tblCabos"></table>
+      </div>
+      <p class="note"><b>x<sub>P</sub>, y<sub>P</sub>, z<sub>P</sub>:</b> posição do nó P no substep (ou no caso de força) mostrado.</p>
+      <p class="note"><b>T₀:</b> componente horizontal da força axial, N·cos φ, média na metade central do trecho (mesma definição do texto do TCC). <b>N máx:</b> maior força axial do trecho, que fica junto à ancoragem, onde o cabo é mais inclinado. <b>σ máx:</b> N máx dividido pela área. <b>L:</b> comprimento atual do trecho; como o cabo é praticamente inextensível, fica em 25 / 25 / 30 m.</p>
+    </section>
+
+    <section class="card">
+      <h2>Comparação com o TCC <small>Tabela 4.14</small></h2>
+      <div class="tablewrap">
+        <table class="tbl" id="tblTcc"></table>
+      </div>
+      <p class="note">Compara o ANSYS com o modelo analítico do TCC (Tabela 4.14). Δ é a diferença do ANSYS em relação ao analítico: em metros para a posição de P e em porcentagem para as trações horizontais.</p>
+      <p class="note" id="tccNote"></p>
+    </section>
+
+    <section class="card">
+      <h2 id="ch1Title">Ao longo do cabo</h2>
+      <div class="legendrow" id="serLegend"></div>
+      <div class="chart" id="ch1"></div>
+      <p class="note">Valor da grandeza escolhida em cada nó, em função do comprimento de arco <i>s</i> medido da ancoragem (A, B ou C) até P: 25 m nos trechos A–P e B–P e 30 m no C–P. A–P e B–P coincidem por simetria.</p>
+      <p class="note">Sob peso próprio, a tração é máxima na ancoragem, onde o cabo é mais inclinado, e mínima perto do ponto mais baixo. Com uma força concentrada aparece uma mudança brusca de inclinação no ponto da força. Passe o mouse sobre o gráfico para ler os valores.</p>
+    </section>
+
+    <section class="card">
+      <h2 id="ch2Title">Histórico do carregamento</h2>
+      <div class="chart" id="ch2"></div>
+      <p class="note">Máximo da grandeza em cada trecho, em cada substep, em função do fator de carga (fração do peso próprio já aplicada). A linha tracejada marca o substep mostrado; clique no gráfico para ir a outro substep.</p>
+      <p class="note">Os substeps não são tempo físico: são os passos do método numérico, que aplica o peso aos poucos até chegar ao equilíbrio. Depois que a forma se acomoda, a tração cresce praticamente em proporção à carga.</p>
+    </section>
+
+    <details class="card" id="tabela">
+      <summary>Tabela de elementos do passo <small>(acessível / exportável)</small></summary>
+      <p class="note">Força axial e tensão σ de cada um dos 120 elementos no substep (ou caso) mostrado. O CSV também traz os momentos e o torque (MY, MZ, TQ) do BEAM188, que não têm significado para um cabo ideal.</p>
+      <div class="row"><button type="button" id="btnCsv" class="ghost">Exportar CSV</button></div>
+      <div class="tablewrap tall"><table class="tbl" id="tblElem"></table></div>
+    </details>
+
+  </aside>
+</main>
+
+<footer class="foot">
+  Dados exportados de <code>catenaria3d.inp</code> por <code>exportar_resultados.inp</code> · gerados em <span id="gerado"></span>
+</footer>
+
+<script src="dados.js"></script>
+<script src="casos.js" onerror="window.CASOS=null"></script>
+<script src="malhas.js" onerror="window.MALHAS=null"></script>
+<script src="app.js"></script>
+<script src="notas.js"></script>
+</body>
+</html>

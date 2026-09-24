@@ -1,0 +1,765 @@
+/CLEAR,NOSTART
+/FILNAME,catenaria3d,1
+/TITLE,Catenaria 3D - Caso Principal (TCC)
+/PREP7
+
+! ============ Parametros fisicos (Tabela 4.13 do TCC) ============
+xa=0     $ ya=20    $ za=0
+xb=40    $ yb=20    $ zb=0
+xc=20    $ yc=15    $ zc=25
+
+L1=50
+LC=30
+eta=0.5
+LA=eta*L1
+LB=(1-eta)*L1
+
+q1=40
+q2=20
+
+xp0=(xa+xb)/2
+yp0=10
+zp0=8
+
+! ============ Geometria ============
+K,1,xa,ya,za
+K,2,xb,yb,zb
+K,3,xc,yc,zc
+K,4,xp0,yp0,zp0
+
+L,1,4
+L,2,4
+L,3,4
+
+! Keypoints auxiliares apenas para orientacao do BEAM188 (secao circular,
+! entao a orientacao nao afeta a fisica, so precisa ser um ponto fora da linha)
+K,10,xa,ya+5,za
+K,11,xb,yb+5,zb
+K,12,xc,yc+5,zc
+
+dAP=SQRT((xp0-xa)*(xp0-xa)+(yp0-ya)*(yp0-ya)+(zp0-za)*(zp0-za))
+dBP=SQRT((xp0-xb)*(xp0-xb)+(yp0-yb)*(yp0-yb)+(zp0-zb)*(zp0-zb))
+dCP=SQRT((xp0-xc)*(xp0-xc)+(yp0-yc)*(yp0-yc)+(zp0-zc)*(zp0-zc))
+
+! O excesso de comprimento (folga) e representado pela forma parabolica
+! inicial dos nos (ver secao de perturbacao abaixo).
+
+! ============ Elemento / material ============
+! BEAM188: viga fina com pequena rigidez a flexao. Diferente do LINK180
+! (trelica pura), uma viga reta ja possui rigidez transversal propria,
+! entao nao ha singularidade de colinearidade a resolver.
+ET,1,BEAM188
+
+MP,EX,1,2.0E11
+MP,PRXY,1,0.3
+
+! Secao generica (ASEC): area de uma secao circular de raio rsec = 1 cm
+! (EA alto -> cabo praticamente inextensivel), mas momento de inercia
+! REDUZIDO pelo fator fI em relacao ao da secao circular. Com a secao
+! circular macica (CSOLID) area e inercia ficam acopladas (A = pi r^2,
+! I = pi r^4/4): diminuir o raio reduz EI mas tambem EA. Com ASEC os dois
+! sao independentes. fI = 0,01 foi o menor valor que converge de forma
+! confiavel (ver estudo_rigidez.py); EI menor ainda deixa o 1o substep
+! quase singular (cabo sem tracao = sem rigidez transversal).
+! Usamos 3 IDs de secao identicos apenas para poder identificar depois
+! (via SECNUM) a qual trecho cada elemento pertence.
+rsec=0.01
+fI=0.1
+Asec=3.14159265359*rsec**2
+Isec=fI*3.14159265359*rsec**4/4
+SECTYPE,1,BEAM,ASEC
+SECDATA,Asec,Isec,0,Isec,0,2*Isec
+SECTYPE,2,BEAM,ASEC
+SECDATA,Asec,Isec,0,Isec,0,2*Isec
+SECTYPE,3,BEAM,ASEC
+SECDATA,Asec,Isec,0,Isec,0,2*Isec
+
+! ============ Malha ============
+NDIV=40
+
+LSEL,S,LINE,,1
+LATT,1,,1,,10,,1
+LESIZE,1,,,NDIV
+
+LSEL,S,LINE,,2
+LATT,1,,1,,11,,2
+LESIZE,2,,,NDIV
+
+LSEL,S,LINE,,3
+LATT,1,,1,,12,,3
+LESIZE,3,,,NDIV
+
+ALLSEL,ALL
+LMESH,ALL
+
+! ============ Coletar listas de nos de cada linha (ANTES do detach) ============
+*DIM,nlist1,ARRAY,200
+*DIM,nlist2,ARRAY,200
+*DIM,nlist3,ARRAY,200
+
+LSEL,S,LINE,,1
+NSLL,S,0
+*GET,nn1,NODE,0,COUNT
+nid=0
+*DO,i,1,nn1
+  nid=NDNEXT(nid)
+  nlist1(i)=nid
+*ENDDO
+
+LSEL,S,LINE,,2
+NSLL,S,0
+*GET,nn2,NODE,0,COUNT
+nid=0
+*DO,i,1,nn2
+  nid=NDNEXT(nid)
+  nlist2(i)=nid
+*ENDDO
+
+LSEL,S,LINE,,3
+NSLL,S,0
+*GET,nn3,NODE,0,COUNT
+nid=0
+*DO,i,1,nn3
+  nid=NDNEXT(nid)
+  nlist3(i)=nid
+*ENDDO
+
+ALLSEL,ALL
+
+! ============ Nos das ancoragens e do no P ============
+KSEL,S,,,1
+NSLK,S
+*GET,nodeA,NODE,0,NUM,MAX
+
+KSEL,S,,,2
+NSLK,S
+*GET,nodeB,NODE,0,NUM,MAX
+
+KSEL,S,,,3
+NSLK,S
+*GET,nodeC,NODE,0,NUM,MAX
+
+KSEL,S,,,4
+NSLK,S
+*GET,nodeP,NODE,0,NUM,MAX
+
+ALLSEL,ALL
+
+! ============ Condicoes de contorno ============
+D,nodeA,ALL,0
+D,nodeB,ALL,0
+D,nodeC,ALL,0
+
+! ============ Cargas ============
+! O peso proprio e aplicado mais abaixo, DEPOIS de mover os nos para a forma
+! inicial, porque depende do comprimento real de cada elemento.
+
+ALLSEL,ALL
+
+! ============ Perturbacao inicial (quebra colinearidade) ============
+! Feita apos detach da malha do modelo solido, usando somente numeros de no
+! ja coletados acima (evita restricao "node attached to line").
+
+MODMSH,DETACH
+
+! PROPOSITAL: chute inicial RUIM = parabola pura (suave em toda a
+! extensao, sem nenhum ponto anguloso), 100% dentro do plano vertical
+! de cada cabo, com profundidade maior que a correta (comprimento de
+! arco ainda bate com LA/LB/LC, mas a forma comeca claramente errada).
+
+*DIM,ndA,ARRAY,41
+xq=xa+0.0000000000*(xp0-xa) $ yq=ya+0.0000000000*(yp0-ya) $ zq=za+0.0000000000*(zp0-za)
+ndA(1)=NODE(xq,yq,zq)
+xq=xa+0.0250000000*(xp0-xa) $ yq=ya+0.0250000000*(yp0-ya) $ zq=za+0.0250000000*(zp0-za)
+ndA(2)=NODE(xq,yq,zq)
+xq=xa+0.0500000000*(xp0-xa) $ yq=ya+0.0500000000*(yp0-ya) $ zq=za+0.0500000000*(zp0-za)
+ndA(3)=NODE(xq,yq,zq)
+xq=xa+0.0750000000*(xp0-xa) $ yq=ya+0.0750000000*(yp0-ya) $ zq=za+0.0750000000*(zp0-za)
+ndA(4)=NODE(xq,yq,zq)
+xq=xa+0.1000000000*(xp0-xa) $ yq=ya+0.1000000000*(yp0-ya) $ zq=za+0.1000000000*(zp0-za)
+ndA(5)=NODE(xq,yq,zq)
+xq=xa+0.1250000000*(xp0-xa) $ yq=ya+0.1250000000*(yp0-ya) $ zq=za+0.1250000000*(zp0-za)
+ndA(6)=NODE(xq,yq,zq)
+xq=xa+0.1500000000*(xp0-xa) $ yq=ya+0.1500000000*(yp0-ya) $ zq=za+0.1500000000*(zp0-za)
+ndA(7)=NODE(xq,yq,zq)
+xq=xa+0.1750000000*(xp0-xa) $ yq=ya+0.1750000000*(yp0-ya) $ zq=za+0.1750000000*(zp0-za)
+ndA(8)=NODE(xq,yq,zq)
+xq=xa+0.2000000000*(xp0-xa) $ yq=ya+0.2000000000*(yp0-ya) $ zq=za+0.2000000000*(zp0-za)
+ndA(9)=NODE(xq,yq,zq)
+xq=xa+0.2250000000*(xp0-xa) $ yq=ya+0.2250000000*(yp0-ya) $ zq=za+0.2250000000*(zp0-za)
+ndA(10)=NODE(xq,yq,zq)
+xq=xa+0.2500000000*(xp0-xa) $ yq=ya+0.2500000000*(yp0-ya) $ zq=za+0.2500000000*(zp0-za)
+ndA(11)=NODE(xq,yq,zq)
+xq=xa+0.2750000000*(xp0-xa) $ yq=ya+0.2750000000*(yp0-ya) $ zq=za+0.2750000000*(zp0-za)
+ndA(12)=NODE(xq,yq,zq)
+xq=xa+0.3000000000*(xp0-xa) $ yq=ya+0.3000000000*(yp0-ya) $ zq=za+0.3000000000*(zp0-za)
+ndA(13)=NODE(xq,yq,zq)
+xq=xa+0.3250000000*(xp0-xa) $ yq=ya+0.3250000000*(yp0-ya) $ zq=za+0.3250000000*(zp0-za)
+ndA(14)=NODE(xq,yq,zq)
+xq=xa+0.3500000000*(xp0-xa) $ yq=ya+0.3500000000*(yp0-ya) $ zq=za+0.3500000000*(zp0-za)
+ndA(15)=NODE(xq,yq,zq)
+xq=xa+0.3750000000*(xp0-xa) $ yq=ya+0.3750000000*(yp0-ya) $ zq=za+0.3750000000*(zp0-za)
+ndA(16)=NODE(xq,yq,zq)
+xq=xa+0.4000000000*(xp0-xa) $ yq=ya+0.4000000000*(yp0-ya) $ zq=za+0.4000000000*(zp0-za)
+ndA(17)=NODE(xq,yq,zq)
+xq=xa+0.4250000000*(xp0-xa) $ yq=ya+0.4250000000*(yp0-ya) $ zq=za+0.4250000000*(zp0-za)
+ndA(18)=NODE(xq,yq,zq)
+xq=xa+0.4500000000*(xp0-xa) $ yq=ya+0.4500000000*(yp0-ya) $ zq=za+0.4500000000*(zp0-za)
+ndA(19)=NODE(xq,yq,zq)
+xq=xa+0.4750000000*(xp0-xa) $ yq=ya+0.4750000000*(yp0-ya) $ zq=za+0.4750000000*(zp0-za)
+ndA(20)=NODE(xq,yq,zq)
+xq=xa+0.5000000000*(xp0-xa) $ yq=ya+0.5000000000*(yp0-ya) $ zq=za+0.5000000000*(zp0-za)
+ndA(21)=NODE(xq,yq,zq)
+xq=xa+0.5250000000*(xp0-xa) $ yq=ya+0.5250000000*(yp0-ya) $ zq=za+0.5250000000*(zp0-za)
+ndA(22)=NODE(xq,yq,zq)
+xq=xa+0.5500000000*(xp0-xa) $ yq=ya+0.5500000000*(yp0-ya) $ zq=za+0.5500000000*(zp0-za)
+ndA(23)=NODE(xq,yq,zq)
+xq=xa+0.5750000000*(xp0-xa) $ yq=ya+0.5750000000*(yp0-ya) $ zq=za+0.5750000000*(zp0-za)
+ndA(24)=NODE(xq,yq,zq)
+xq=xa+0.6000000000*(xp0-xa) $ yq=ya+0.6000000000*(yp0-ya) $ zq=za+0.6000000000*(zp0-za)
+ndA(25)=NODE(xq,yq,zq)
+xq=xa+0.6250000000*(xp0-xa) $ yq=ya+0.6250000000*(yp0-ya) $ zq=za+0.6250000000*(zp0-za)
+ndA(26)=NODE(xq,yq,zq)
+xq=xa+0.6500000000*(xp0-xa) $ yq=ya+0.6500000000*(yp0-ya) $ zq=za+0.6500000000*(zp0-za)
+ndA(27)=NODE(xq,yq,zq)
+xq=xa+0.6750000000*(xp0-xa) $ yq=ya+0.6750000000*(yp0-ya) $ zq=za+0.6750000000*(zp0-za)
+ndA(28)=NODE(xq,yq,zq)
+xq=xa+0.7000000000*(xp0-xa) $ yq=ya+0.7000000000*(yp0-ya) $ zq=za+0.7000000000*(zp0-za)
+ndA(29)=NODE(xq,yq,zq)
+xq=xa+0.7250000000*(xp0-xa) $ yq=ya+0.7250000000*(yp0-ya) $ zq=za+0.7250000000*(zp0-za)
+ndA(30)=NODE(xq,yq,zq)
+xq=xa+0.7500000000*(xp0-xa) $ yq=ya+0.7500000000*(yp0-ya) $ zq=za+0.7500000000*(zp0-za)
+ndA(31)=NODE(xq,yq,zq)
+xq=xa+0.7750000000*(xp0-xa) $ yq=ya+0.7750000000*(yp0-ya) $ zq=za+0.7750000000*(zp0-za)
+ndA(32)=NODE(xq,yq,zq)
+xq=xa+0.8000000000*(xp0-xa) $ yq=ya+0.8000000000*(yp0-ya) $ zq=za+0.8000000000*(zp0-za)
+ndA(33)=NODE(xq,yq,zq)
+xq=xa+0.8250000000*(xp0-xa) $ yq=ya+0.8250000000*(yp0-ya) $ zq=za+0.8250000000*(zp0-za)
+ndA(34)=NODE(xq,yq,zq)
+xq=xa+0.8500000000*(xp0-xa) $ yq=ya+0.8500000000*(yp0-ya) $ zq=za+0.8500000000*(zp0-za)
+ndA(35)=NODE(xq,yq,zq)
+xq=xa+0.8750000000*(xp0-xa) $ yq=ya+0.8750000000*(yp0-ya) $ zq=za+0.8750000000*(zp0-za)
+ndA(36)=NODE(xq,yq,zq)
+xq=xa+0.9000000000*(xp0-xa) $ yq=ya+0.9000000000*(yp0-ya) $ zq=za+0.9000000000*(zp0-za)
+ndA(37)=NODE(xq,yq,zq)
+xq=xa+0.9250000000*(xp0-xa) $ yq=ya+0.9250000000*(yp0-ya) $ zq=za+0.9250000000*(zp0-za)
+ndA(38)=NODE(xq,yq,zq)
+xq=xa+0.9500000000*(xp0-xa) $ yq=ya+0.9500000000*(yp0-ya) $ zq=za+0.9500000000*(zp0-za)
+ndA(39)=NODE(xq,yq,zq)
+xq=xa+0.9750000000*(xp0-xa) $ yq=ya+0.9750000000*(yp0-ya) $ zq=za+0.9750000000*(zp0-za)
+ndA(40)=NODE(xq,yq,zq)
+xq=xa+1.0000000000*(xp0-xa) $ yq=ya+1.0000000000*(yp0-ya) $ zq=za+1.0000000000*(zp0-za)
+ndA(41)=NODE(xq,yq,zq)
+
+*DIM,ndB,ARRAY,41
+xq=xb+0.0000000000*(xp0-xb) $ yq=yb+0.0000000000*(yp0-yb) $ zq=zb+0.0000000000*(zp0-zb)
+ndB(1)=NODE(xq,yq,zq)
+xq=xb+0.0250000000*(xp0-xb) $ yq=yb+0.0250000000*(yp0-yb) $ zq=zb+0.0250000000*(zp0-zb)
+ndB(2)=NODE(xq,yq,zq)
+xq=xb+0.0500000000*(xp0-xb) $ yq=yb+0.0500000000*(yp0-yb) $ zq=zb+0.0500000000*(zp0-zb)
+ndB(3)=NODE(xq,yq,zq)
+xq=xb+0.0750000000*(xp0-xb) $ yq=yb+0.0750000000*(yp0-yb) $ zq=zb+0.0750000000*(zp0-zb)
+ndB(4)=NODE(xq,yq,zq)
+xq=xb+0.1000000000*(xp0-xb) $ yq=yb+0.1000000000*(yp0-yb) $ zq=zb+0.1000000000*(zp0-zb)
+ndB(5)=NODE(xq,yq,zq)
+xq=xb+0.1250000000*(xp0-xb) $ yq=yb+0.1250000000*(yp0-yb) $ zq=zb+0.1250000000*(zp0-zb)
+ndB(6)=NODE(xq,yq,zq)
+xq=xb+0.1500000000*(xp0-xb) $ yq=yb+0.1500000000*(yp0-yb) $ zq=zb+0.1500000000*(zp0-zb)
+ndB(7)=NODE(xq,yq,zq)
+xq=xb+0.1750000000*(xp0-xb) $ yq=yb+0.1750000000*(yp0-yb) $ zq=zb+0.1750000000*(zp0-zb)
+ndB(8)=NODE(xq,yq,zq)
+xq=xb+0.2000000000*(xp0-xb) $ yq=yb+0.2000000000*(yp0-yb) $ zq=zb+0.2000000000*(zp0-zb)
+ndB(9)=NODE(xq,yq,zq)
+xq=xb+0.2250000000*(xp0-xb) $ yq=yb+0.2250000000*(yp0-yb) $ zq=zb+0.2250000000*(zp0-zb)
+ndB(10)=NODE(xq,yq,zq)
+xq=xb+0.2500000000*(xp0-xb) $ yq=yb+0.2500000000*(yp0-yb) $ zq=zb+0.2500000000*(zp0-zb)
+ndB(11)=NODE(xq,yq,zq)
+xq=xb+0.2750000000*(xp0-xb) $ yq=yb+0.2750000000*(yp0-yb) $ zq=zb+0.2750000000*(zp0-zb)
+ndB(12)=NODE(xq,yq,zq)
+xq=xb+0.3000000000*(xp0-xb) $ yq=yb+0.3000000000*(yp0-yb) $ zq=zb+0.3000000000*(zp0-zb)
+ndB(13)=NODE(xq,yq,zq)
+xq=xb+0.3250000000*(xp0-xb) $ yq=yb+0.3250000000*(yp0-yb) $ zq=zb+0.3250000000*(zp0-zb)
+ndB(14)=NODE(xq,yq,zq)
+xq=xb+0.3500000000*(xp0-xb) $ yq=yb+0.3500000000*(yp0-yb) $ zq=zb+0.3500000000*(zp0-zb)
+ndB(15)=NODE(xq,yq,zq)
+xq=xb+0.3750000000*(xp0-xb) $ yq=yb+0.3750000000*(yp0-yb) $ zq=zb+0.3750000000*(zp0-zb)
+ndB(16)=NODE(xq,yq,zq)
+xq=xb+0.4000000000*(xp0-xb) $ yq=yb+0.4000000000*(yp0-yb) $ zq=zb+0.4000000000*(zp0-zb)
+ndB(17)=NODE(xq,yq,zq)
+xq=xb+0.4250000000*(xp0-xb) $ yq=yb+0.4250000000*(yp0-yb) $ zq=zb+0.4250000000*(zp0-zb)
+ndB(18)=NODE(xq,yq,zq)
+xq=xb+0.4500000000*(xp0-xb) $ yq=yb+0.4500000000*(yp0-yb) $ zq=zb+0.4500000000*(zp0-zb)
+ndB(19)=NODE(xq,yq,zq)
+xq=xb+0.4750000000*(xp0-xb) $ yq=yb+0.4750000000*(yp0-yb) $ zq=zb+0.4750000000*(zp0-zb)
+ndB(20)=NODE(xq,yq,zq)
+xq=xb+0.5000000000*(xp0-xb) $ yq=yb+0.5000000000*(yp0-yb) $ zq=zb+0.5000000000*(zp0-zb)
+ndB(21)=NODE(xq,yq,zq)
+xq=xb+0.5250000000*(xp0-xb) $ yq=yb+0.5250000000*(yp0-yb) $ zq=zb+0.5250000000*(zp0-zb)
+ndB(22)=NODE(xq,yq,zq)
+xq=xb+0.5500000000*(xp0-xb) $ yq=yb+0.5500000000*(yp0-yb) $ zq=zb+0.5500000000*(zp0-zb)
+ndB(23)=NODE(xq,yq,zq)
+xq=xb+0.5750000000*(xp0-xb) $ yq=yb+0.5750000000*(yp0-yb) $ zq=zb+0.5750000000*(zp0-zb)
+ndB(24)=NODE(xq,yq,zq)
+xq=xb+0.6000000000*(xp0-xb) $ yq=yb+0.6000000000*(yp0-yb) $ zq=zb+0.6000000000*(zp0-zb)
+ndB(25)=NODE(xq,yq,zq)
+xq=xb+0.6250000000*(xp0-xb) $ yq=yb+0.6250000000*(yp0-yb) $ zq=zb+0.6250000000*(zp0-zb)
+ndB(26)=NODE(xq,yq,zq)
+xq=xb+0.6500000000*(xp0-xb) $ yq=yb+0.6500000000*(yp0-yb) $ zq=zb+0.6500000000*(zp0-zb)
+ndB(27)=NODE(xq,yq,zq)
+xq=xb+0.6750000000*(xp0-xb) $ yq=yb+0.6750000000*(yp0-yb) $ zq=zb+0.6750000000*(zp0-zb)
+ndB(28)=NODE(xq,yq,zq)
+xq=xb+0.7000000000*(xp0-xb) $ yq=yb+0.7000000000*(yp0-yb) $ zq=zb+0.7000000000*(zp0-zb)
+ndB(29)=NODE(xq,yq,zq)
+xq=xb+0.7250000000*(xp0-xb) $ yq=yb+0.7250000000*(yp0-yb) $ zq=zb+0.7250000000*(zp0-zb)
+ndB(30)=NODE(xq,yq,zq)
+xq=xb+0.7500000000*(xp0-xb) $ yq=yb+0.7500000000*(yp0-yb) $ zq=zb+0.7500000000*(zp0-zb)
+ndB(31)=NODE(xq,yq,zq)
+xq=xb+0.7750000000*(xp0-xb) $ yq=yb+0.7750000000*(yp0-yb) $ zq=zb+0.7750000000*(zp0-zb)
+ndB(32)=NODE(xq,yq,zq)
+xq=xb+0.8000000000*(xp0-xb) $ yq=yb+0.8000000000*(yp0-yb) $ zq=zb+0.8000000000*(zp0-zb)
+ndB(33)=NODE(xq,yq,zq)
+xq=xb+0.8250000000*(xp0-xb) $ yq=yb+0.8250000000*(yp0-yb) $ zq=zb+0.8250000000*(zp0-zb)
+ndB(34)=NODE(xq,yq,zq)
+xq=xb+0.8500000000*(xp0-xb) $ yq=yb+0.8500000000*(yp0-yb) $ zq=zb+0.8500000000*(zp0-zb)
+ndB(35)=NODE(xq,yq,zq)
+xq=xb+0.8750000000*(xp0-xb) $ yq=yb+0.8750000000*(yp0-yb) $ zq=zb+0.8750000000*(zp0-zb)
+ndB(36)=NODE(xq,yq,zq)
+xq=xb+0.9000000000*(xp0-xb) $ yq=yb+0.9000000000*(yp0-yb) $ zq=zb+0.9000000000*(zp0-zb)
+ndB(37)=NODE(xq,yq,zq)
+xq=xb+0.9250000000*(xp0-xb) $ yq=yb+0.9250000000*(yp0-yb) $ zq=zb+0.9250000000*(zp0-zb)
+ndB(38)=NODE(xq,yq,zq)
+xq=xb+0.9500000000*(xp0-xb) $ yq=yb+0.9500000000*(yp0-yb) $ zq=zb+0.9500000000*(zp0-zb)
+ndB(39)=NODE(xq,yq,zq)
+xq=xb+0.9750000000*(xp0-xb) $ yq=yb+0.9750000000*(yp0-yb) $ zq=zb+0.9750000000*(zp0-zb)
+ndB(40)=NODE(xq,yq,zq)
+xq=xb+1.0000000000*(xp0-xb) $ yq=yb+1.0000000000*(yp0-yb) $ zq=zb+1.0000000000*(zp0-zb)
+ndB(41)=NODE(xq,yq,zq)
+
+*DIM,ndC,ARRAY,41
+xq=xc+0.0000000000*(xp0-xc) $ yq=yc+0.0000000000*(yp0-yc) $ zq=zc+0.0000000000*(zp0-zc)
+ndC(1)=NODE(xq,yq,zq)
+xq=xc+0.0250000000*(xp0-xc) $ yq=yc+0.0250000000*(yp0-yc) $ zq=zc+0.0250000000*(zp0-zc)
+ndC(2)=NODE(xq,yq,zq)
+xq=xc+0.0500000000*(xp0-xc) $ yq=yc+0.0500000000*(yp0-yc) $ zq=zc+0.0500000000*(zp0-zc)
+ndC(3)=NODE(xq,yq,zq)
+xq=xc+0.0750000000*(xp0-xc) $ yq=yc+0.0750000000*(yp0-yc) $ zq=zc+0.0750000000*(zp0-zc)
+ndC(4)=NODE(xq,yq,zq)
+xq=xc+0.1000000000*(xp0-xc) $ yq=yc+0.1000000000*(yp0-yc) $ zq=zc+0.1000000000*(zp0-zc)
+ndC(5)=NODE(xq,yq,zq)
+xq=xc+0.1250000000*(xp0-xc) $ yq=yc+0.1250000000*(yp0-yc) $ zq=zc+0.1250000000*(zp0-zc)
+ndC(6)=NODE(xq,yq,zq)
+xq=xc+0.1500000000*(xp0-xc) $ yq=yc+0.1500000000*(yp0-yc) $ zq=zc+0.1500000000*(zp0-zc)
+ndC(7)=NODE(xq,yq,zq)
+xq=xc+0.1750000000*(xp0-xc) $ yq=yc+0.1750000000*(yp0-yc) $ zq=zc+0.1750000000*(zp0-zc)
+ndC(8)=NODE(xq,yq,zq)
+xq=xc+0.2000000000*(xp0-xc) $ yq=yc+0.2000000000*(yp0-yc) $ zq=zc+0.2000000000*(zp0-zc)
+ndC(9)=NODE(xq,yq,zq)
+xq=xc+0.2250000000*(xp0-xc) $ yq=yc+0.2250000000*(yp0-yc) $ zq=zc+0.2250000000*(zp0-zc)
+ndC(10)=NODE(xq,yq,zq)
+xq=xc+0.2500000000*(xp0-xc) $ yq=yc+0.2500000000*(yp0-yc) $ zq=zc+0.2500000000*(zp0-zc)
+ndC(11)=NODE(xq,yq,zq)
+xq=xc+0.2750000000*(xp0-xc) $ yq=yc+0.2750000000*(yp0-yc) $ zq=zc+0.2750000000*(zp0-zc)
+ndC(12)=NODE(xq,yq,zq)
+xq=xc+0.3000000000*(xp0-xc) $ yq=yc+0.3000000000*(yp0-yc) $ zq=zc+0.3000000000*(zp0-zc)
+ndC(13)=NODE(xq,yq,zq)
+xq=xc+0.3250000000*(xp0-xc) $ yq=yc+0.3250000000*(yp0-yc) $ zq=zc+0.3250000000*(zp0-zc)
+ndC(14)=NODE(xq,yq,zq)
+xq=xc+0.3500000000*(xp0-xc) $ yq=yc+0.3500000000*(yp0-yc) $ zq=zc+0.3500000000*(zp0-zc)
+ndC(15)=NODE(xq,yq,zq)
+xq=xc+0.3750000000*(xp0-xc) $ yq=yc+0.3750000000*(yp0-yc) $ zq=zc+0.3750000000*(zp0-zc)
+ndC(16)=NODE(xq,yq,zq)
+xq=xc+0.4000000000*(xp0-xc) $ yq=yc+0.4000000000*(yp0-yc) $ zq=zc+0.4000000000*(zp0-zc)
+ndC(17)=NODE(xq,yq,zq)
+xq=xc+0.4250000000*(xp0-xc) $ yq=yc+0.4250000000*(yp0-yc) $ zq=zc+0.4250000000*(zp0-zc)
+ndC(18)=NODE(xq,yq,zq)
+xq=xc+0.4500000000*(xp0-xc) $ yq=yc+0.4500000000*(yp0-yc) $ zq=zc+0.4500000000*(zp0-zc)
+ndC(19)=NODE(xq,yq,zq)
+xq=xc+0.4750000000*(xp0-xc) $ yq=yc+0.4750000000*(yp0-yc) $ zq=zc+0.4750000000*(zp0-zc)
+ndC(20)=NODE(xq,yq,zq)
+xq=xc+0.5000000000*(xp0-xc) $ yq=yc+0.5000000000*(yp0-yc) $ zq=zc+0.5000000000*(zp0-zc)
+ndC(21)=NODE(xq,yq,zq)
+xq=xc+0.5250000000*(xp0-xc) $ yq=yc+0.5250000000*(yp0-yc) $ zq=zc+0.5250000000*(zp0-zc)
+ndC(22)=NODE(xq,yq,zq)
+xq=xc+0.5500000000*(xp0-xc) $ yq=yc+0.5500000000*(yp0-yc) $ zq=zc+0.5500000000*(zp0-zc)
+ndC(23)=NODE(xq,yq,zq)
+xq=xc+0.5750000000*(xp0-xc) $ yq=yc+0.5750000000*(yp0-yc) $ zq=zc+0.5750000000*(zp0-zc)
+ndC(24)=NODE(xq,yq,zq)
+xq=xc+0.6000000000*(xp0-xc) $ yq=yc+0.6000000000*(yp0-yc) $ zq=zc+0.6000000000*(zp0-zc)
+ndC(25)=NODE(xq,yq,zq)
+xq=xc+0.6250000000*(xp0-xc) $ yq=yc+0.6250000000*(yp0-yc) $ zq=zc+0.6250000000*(zp0-zc)
+ndC(26)=NODE(xq,yq,zq)
+xq=xc+0.6500000000*(xp0-xc) $ yq=yc+0.6500000000*(yp0-yc) $ zq=zc+0.6500000000*(zp0-zc)
+ndC(27)=NODE(xq,yq,zq)
+xq=xc+0.6750000000*(xp0-xc) $ yq=yc+0.6750000000*(yp0-yc) $ zq=zc+0.6750000000*(zp0-zc)
+ndC(28)=NODE(xq,yq,zq)
+xq=xc+0.7000000000*(xp0-xc) $ yq=yc+0.7000000000*(yp0-yc) $ zq=zc+0.7000000000*(zp0-zc)
+ndC(29)=NODE(xq,yq,zq)
+xq=xc+0.7250000000*(xp0-xc) $ yq=yc+0.7250000000*(yp0-yc) $ zq=zc+0.7250000000*(zp0-zc)
+ndC(30)=NODE(xq,yq,zq)
+xq=xc+0.7500000000*(xp0-xc) $ yq=yc+0.7500000000*(yp0-yc) $ zq=zc+0.7500000000*(zp0-zc)
+ndC(31)=NODE(xq,yq,zq)
+xq=xc+0.7750000000*(xp0-xc) $ yq=yc+0.7750000000*(yp0-yc) $ zq=zc+0.7750000000*(zp0-zc)
+ndC(32)=NODE(xq,yq,zq)
+xq=xc+0.8000000000*(xp0-xc) $ yq=yc+0.8000000000*(yp0-yc) $ zq=zc+0.8000000000*(zp0-zc)
+ndC(33)=NODE(xq,yq,zq)
+xq=xc+0.8250000000*(xp0-xc) $ yq=yc+0.8250000000*(yp0-yc) $ zq=zc+0.8250000000*(zp0-zc)
+ndC(34)=NODE(xq,yq,zq)
+xq=xc+0.8500000000*(xp0-xc) $ yq=yc+0.8500000000*(yp0-yc) $ zq=zc+0.8500000000*(zp0-zc)
+ndC(35)=NODE(xq,yq,zq)
+xq=xc+0.8750000000*(xp0-xc) $ yq=yc+0.8750000000*(yp0-yc) $ zq=zc+0.8750000000*(zp0-zc)
+ndC(36)=NODE(xq,yq,zq)
+xq=xc+0.9000000000*(xp0-xc) $ yq=yc+0.9000000000*(yp0-yc) $ zq=zc+0.9000000000*(zp0-zc)
+ndC(37)=NODE(xq,yq,zq)
+xq=xc+0.9250000000*(xp0-xc) $ yq=yc+0.9250000000*(yp0-yc) $ zq=zc+0.9250000000*(zp0-zc)
+ndC(38)=NODE(xq,yq,zq)
+xq=xc+0.9500000000*(xp0-xc) $ yq=yc+0.9500000000*(yp0-yc) $ zq=zc+0.9500000000*(zp0-zc)
+ndC(39)=NODE(xq,yq,zq)
+xq=xc+0.9750000000*(xp0-xc) $ yq=yc+0.9750000000*(yp0-yc) $ zq=zc+0.9750000000*(zp0-zc)
+ndC(40)=NODE(xq,yq,zq)
+xq=xc+1.0000000000*(xp0-xc) $ yq=yc+1.0000000000*(yp0-yc) $ zq=zc+1.0000000000*(zp0-zc)
+ndC(41)=NODE(xq,yq,zq)
+
+NMODIF,ndA(1),0.00000000,20.00000000,0.00000000
+NMODIF,ndA(2),0.50000000,19.38892153,0.20000000
+NMODIF,ndA(3),1.00000000,18.79635991,0.40000000
+NMODIF,ndA(4),1.50000000,18.22231514,0.60000000
+NMODIF,ndA(5),2.00000000,17.66678720,0.80000000
+NMODIF,ndA(6),2.50000000,17.12977612,1.00000000
+NMODIF,ndA(7),3.00000000,16.61128187,1.20000000
+NMODIF,ndA(8),3.50000000,16.11130447,1.40000000
+NMODIF,ndA(9),4.00000000,15.62984392,1.60000000
+NMODIF,ndA(10),4.50000000,15.16690021,1.80000000
+NMODIF,ndA(11),5.00000000,14.72247334,2.00000000
+NMODIF,ndA(12),5.50000000,14.29656332,2.20000000
+NMODIF,ndA(13),6.00000000,13.88917014,2.40000000
+NMODIF,ndA(14),6.50000000,13.50029381,2.60000000
+NMODIF,ndA(15),7.00000000,13.12993432,2.80000000
+NMODIF,ndA(16),7.50000000,12.77809168,3.00000000
+NMODIF,ndA(17),8.00000000,12.44476588,3.20000000
+NMODIF,ndA(18),8.50000000,12.12995692,3.40000000
+NMODIF,ndA(19),9.00000000,11.83366481,3.60000000
+NMODIF,ndA(20),9.50000000,11.55588955,3.80000000
+NMODIF,ndA(21),10.00000000,11.29663112,4.00000000
+NMODIF,ndA(22),10.50000000,11.05588955,4.20000000
+NMODIF,ndA(23),11.00000000,10.83366481,4.40000000
+NMODIF,ndA(24),11.50000000,10.62995692,4.60000000
+NMODIF,ndA(25),12.00000000,10.44476588,4.80000000
+NMODIF,ndA(26),12.50000000,10.27809168,5.00000000
+NMODIF,ndA(27),13.00000000,10.12993432,5.20000000
+NMODIF,ndA(28),13.50000000,10.00029381,5.40000000
+NMODIF,ndA(29),14.00000000,9.88917014,5.60000000
+NMODIF,ndA(30),14.50000000,9.79656332,5.80000000
+NMODIF,ndA(31),15.00000000,9.72247334,6.00000000
+NMODIF,ndA(32),15.50000000,9.66690021,6.20000000
+NMODIF,ndA(33),16.00000000,9.62984392,6.40000000
+NMODIF,ndA(34),16.50000000,9.61130447,6.60000000
+NMODIF,ndA(35),17.00000000,9.61128187,6.80000000
+NMODIF,ndA(36),17.50000000,9.62977612,7.00000000
+NMODIF,ndA(37),18.00000000,9.66678720,7.20000000
+NMODIF,ndA(38),18.50000000,9.72231514,7.40000000
+NMODIF,ndA(39),19.00000000,9.79635991,7.60000000
+NMODIF,ndA(40),19.50000000,9.88892153,7.80000000
+NMODIF,ndA(41),20.00000000,10.00000000,8.00000000
+
+NMODIF,ndB(1),40.00000000,20.00000000,0.00000000
+NMODIF,ndB(2),39.50000000,19.38892153,0.20000000
+NMODIF,ndB(3),39.00000000,18.79635991,0.40000000
+NMODIF,ndB(4),38.50000000,18.22231514,0.60000000
+NMODIF,ndB(5),38.00000000,17.66678720,0.80000000
+NMODIF,ndB(6),37.50000000,17.12977612,1.00000000
+NMODIF,ndB(7),37.00000000,16.61128187,1.20000000
+NMODIF,ndB(8),36.50000000,16.11130447,1.40000000
+NMODIF,ndB(9),36.00000000,15.62984392,1.60000000
+NMODIF,ndB(10),35.50000000,15.16690021,1.80000000
+NMODIF,ndB(11),35.00000000,14.72247334,2.00000000
+NMODIF,ndB(12),34.50000000,14.29656332,2.20000000
+NMODIF,ndB(13),34.00000000,13.88917014,2.40000000
+NMODIF,ndB(14),33.50000000,13.50029381,2.60000000
+NMODIF,ndB(15),33.00000000,13.12993432,2.80000000
+NMODIF,ndB(16),32.50000000,12.77809168,3.00000000
+NMODIF,ndB(17),32.00000000,12.44476588,3.20000000
+NMODIF,ndB(18),31.50000000,12.12995692,3.40000000
+NMODIF,ndB(19),31.00000000,11.83366481,3.60000000
+NMODIF,ndB(20),30.50000000,11.55588955,3.80000000
+NMODIF,ndB(21),30.00000000,11.29663112,4.00000000
+NMODIF,ndB(22),29.50000000,11.05588955,4.20000000
+NMODIF,ndB(23),29.00000000,10.83366481,4.40000000
+NMODIF,ndB(24),28.50000000,10.62995692,4.60000000
+NMODIF,ndB(25),28.00000000,10.44476588,4.80000000
+NMODIF,ndB(26),27.50000000,10.27809168,5.00000000
+NMODIF,ndB(27),27.00000000,10.12993432,5.20000000
+NMODIF,ndB(28),26.50000000,10.00029381,5.40000000
+NMODIF,ndB(29),26.00000000,9.88917014,5.60000000
+NMODIF,ndB(30),25.50000000,9.79656332,5.80000000
+NMODIF,ndB(31),25.00000000,9.72247334,6.00000000
+NMODIF,ndB(32),24.50000000,9.66690021,6.20000000
+NMODIF,ndB(33),24.00000000,9.62984392,6.40000000
+NMODIF,ndB(34),23.50000000,9.61130447,6.60000000
+NMODIF,ndB(35),23.00000000,9.61128187,6.80000000
+NMODIF,ndB(36),22.50000000,9.62977612,7.00000000
+NMODIF,ndB(37),22.00000000,9.66678720,7.20000000
+NMODIF,ndB(38),21.50000000,9.72231514,7.40000000
+NMODIF,ndB(39),21.00000000,9.79635991,7.60000000
+NMODIF,ndB(40),20.50000000,9.88892153,7.80000000
+NMODIF,ndB(41),20.00000000,10.00000000,8.00000000
+
+NMODIF,ndC(1),20.00000000,15.00000000,25.00000000
+NMODIF,ndC(2),20.00000000,13.76428477,24.57500000
+NMODIF,ndC(3),20.00000000,12.58552930,24.15000000
+NMODIF,ndC(4),20.00000000,11.46373358,23.72500000
+NMODIF,ndC(5),20.00000000,10.39889762,23.30000000
+NMODIF,ndC(6),20.00000000,9.39102141,22.87500000
+NMODIF,ndC(7),20.00000000,8.44010496,22.45000000
+NMODIF,ndC(8),20.00000000,7.54614826,22.02500000
+NMODIF,ndC(9),20.00000000,6.70915132,21.60000000
+NMODIF,ndC(10),20.00000000,5.92911413,21.17500000
+NMODIF,ndC(11),20.00000000,5.20603670,20.75000000
+NMODIF,ndC(12),20.00000000,4.53991902,20.32500000
+NMODIF,ndC(13),20.00000000,3.93076110,19.90000000
+NMODIF,ndC(14),20.00000000,3.37856294,19.47500000
+NMODIF,ndC(15),20.00000000,2.88332453,19.05000000
+NMODIF,ndC(16),20.00000000,2.44504587,18.62500000
+NMODIF,ndC(17),20.00000000,2.06372697,18.20000000
+NMODIF,ndC(18),20.00000000,1.73936783,17.77500000
+NMODIF,ndC(19),20.00000000,1.47196844,17.35000000
+NMODIF,ndC(20),20.00000000,1.26152881,16.92500000
+NMODIF,ndC(21),20.00000000,1.10804893,16.50000000
+NMODIF,ndC(22),20.00000000,1.01152881,16.07500000
+NMODIF,ndC(23),20.00000000,0.97196844,15.65000000
+NMODIF,ndC(24),20.00000000,0.98936783,15.22500000
+NMODIF,ndC(25),20.00000000,1.06372697,14.80000000
+NMODIF,ndC(26),20.00000000,1.19504587,14.37500000
+NMODIF,ndC(27),20.00000000,1.38332453,13.95000000
+NMODIF,ndC(28),20.00000000,1.62856294,13.52500000
+NMODIF,ndC(29),20.00000000,1.93076110,13.10000000
+NMODIF,ndC(30),20.00000000,2.28991902,12.67500000
+NMODIF,ndC(31),20.00000000,2.70603670,12.25000000
+NMODIF,ndC(32),20.00000000,3.17911413,11.82500000
+NMODIF,ndC(33),20.00000000,3.70915132,11.40000000
+NMODIF,ndC(34),20.00000000,4.29614826,10.97500000
+NMODIF,ndC(35),20.00000000,4.94010496,10.55000000
+NMODIF,ndC(36),20.00000000,5.64102141,10.12500000
+NMODIF,ndC(37),20.00000000,6.39889762,9.70000000
+NMODIF,ndC(38),20.00000000,7.21373358,9.27500000
+NMODIF,ndC(39),20.00000000,8.08552930,8.85000000
+NMODIF,ndC(40),20.00000000,9.01428477,8.42500000
+NMODIF,ndC(41),20.00000000,10.00000000,8.00000000
+
+! ============ Cargas: peso proprio pelo comprimento real de cada elemento ============
+! Os nos da forma inicial NAO ficam igualmente espacados ao longo do arco
+! (elementos de ~0,54 a ~0,81 m). Aplicar a mesma forca em todo no (q*L/NDIV)
+! distribuiria o peso por projecao, e nao por comprimento de cabo: T0 saia
+! ~5% (A-P) e ~20% (C-P) acima do analitico. Aqui cada elemento leva o peso
+! do seu proprio comprimento, q*le, dividido igualmente entre os 2 nos.
+! (O cabo e praticamente inextensivel, entao le nao muda com a deformacao.)
+FDELE,ALL,ALL
+FCUM,ADD
+*GET,emx,ELEM,0,NUM,MAX
+*DO,e,1,emx
+  n1=NELEM(e,1)
+  n2=NELEM(e,2)
+  *GET,sc,ELEM,e,ATTR,SECN
+  le=DISTND(n1,n2)
+  qe=q1
+  *IF,sc,EQ,3,THEN
+    qe=q2
+  *ENDIF
+  F,n1,FY,-qe*le/2
+  F,n2,FY,-qe*le/2
+*ENDDO
+FCUM,REPL
+
+! ---- forca concentrada (casos_forca.py): cabo C-P, 45% do arco, 1000 N
+! procura, ao longo do vetor de nos ndC (ancoragem -> P), o no cujo
+! comprimento de arco acumulado (forma inicial) fica mais perto do alvo
+starget=0.45*LC
+sacc=0
+kbest=1
+dbest=1.0E9
+sbest=0
+*DO,k,2,41
+  kk=k-1
+  sacc=sacc+DISTND(ndC(kk),ndC(k))
+  dd=ABS(sacc-starget)
+  *IF,dd,LT,dbest,THEN
+    dbest=dd
+    kbest=k
+    sbest=sacc
+  *ENDIF
+*ENDDO
+nForca=ndC(kbest)
+
+FINISH
+
+! ============ Solucao ============
+/SOLU
+ANTYPE,STATIC
+NLGEOM,ON
+AUTOTS,ON
+NSUBST,200,20000,50
+PIVCHECK,OFF
+! Estabilizacao por amortecimento artificial, necessaria no inicio (cabo
+! ainda sem tracao). REDUCE leva esse amortecimento a zero ao fim do passo
+! de carga: o equilibrio final nao e afetado (conferido: ENERGY 1e-2 e 1e-1
+! dao exatamente o mesmo resultado).
+STABILIZE,REDUCE,ENERGY,1.0E-2
+OUTRES,ALL,ALL
+SOLVE
+
+! ---- 2o passo de carga: forca concentrada em rampa (casos_forca.py)
+FCUM,ADD
+F,nForca,FY,-1000
+FCUM,REPL
+TIME,2
+NSUBST,50,20000,20
+LNSRCH,ON
+STABILIZE,CONSTANT,ENERGY,1.0E-2
+SOLVE
+! ---- 3o passo: MESMA carga, sem amortecimento artificial nenhum -> o estado
+! final e um equilibrio estatico "limpo" (a estabilizacao so ajudou a chegar la)
+TIME,3
+NSUBST,5,1000,2
+STABILIZE,OFF
+SOLVE
+FINISH
+
+! ============ Pos-processamento ============
+/POST1
+SET,LAST
+
+*GET,uPx,NODE,nodeP,U,X
+*GET,uPy,NODE,nodeP,U,Y
+*GET,uPz,NODE,nodeP,U,Z
+
+xpFinal=xp0+uPx
+ypFinal=yp0+uPy
+zpFinal=zp0+uPz
+
+/OUT,resultado_noP,txt
+*VWRITE,xpFinal,ypFinal,zpFinal
+('NO P FINAL (x,y,z) = ',F12.5,',',F12.5,',',F12.5)
+/OUT
+
+ALLSEL,ALL
+ETABLE,AXF,SMISC,1
+
+ESEL,S,SECNUM,,1
+/OUT,forcas_linha1_AP,txt
+PRETAB,AXF
+/OUT
+
+ESEL,S,SECNUM,,2
+/OUT,forcas_linha2_BP,txt
+PRETAB,AXF
+/OUT
+
+ESEL,S,SECNUM,,3
+/OUT,forcas_linha3_CP,txt
+PRETAB,AXF
+/OUT
+
+! ============ T0 (tracao horizontal) nos elementos junto ao no P ============
+! Elemento mais proximo de P em cada trecho: NDIV, 2*NDIV, 3*NDIV
+! (numeracao sequencial de criacao por linha)
+elA=NDIV
+elB=2*NDIV
+elC=3*NDIV
+
+*GET,n1A,ELEM,elA,NODE,1
+*GET,n2A,ELEM,elA,NODE,2
+*GET,axfA,ELEM,elA,ETAB,AXF
+
+*GET,n1B,ELEM,elB,NODE,1
+*GET,n2B,ELEM,elB,NODE,2
+*GET,axfB,ELEM,elB,ETAB,AXF
+
+*GET,n1C,ELEM,elC,NODE,1
+*GET,n2C,ELEM,elC,NODE,2
+*GET,axfC,ELEM,elC,ETAB,AXF
+
+*GET,ux1A,NODE,n1A,U,X
+*GET,uy1A,NODE,n1A,U,Y
+*GET,uz1A,NODE,n1A,U,Z
+*GET,ux2A,NODE,n2A,U,X
+*GET,uy2A,NODE,n2A,U,Y
+*GET,uz2A,NODE,n2A,U,Z
+dx=(NX(n2A)+ux2A)-(NX(n1A)+ux1A)
+dy=(NY(n2A)+uy2A)-(NY(n1A)+uy1A)
+dz=(NZ(n2A)+uz2A)-(NZ(n1A)+uz1A)
+LenA=SQRT(dx*dx+dy*dy+dz*dz)
+HorA=SQRT(dx*dx+dz*dz)
+T0A=axfA*HorA/LenA
+
+*GET,ux1B,NODE,n1B,U,X
+*GET,uy1B,NODE,n1B,U,Y
+*GET,uz1B,NODE,n1B,U,Z
+*GET,ux2B,NODE,n2B,U,X
+*GET,uy2B,NODE,n2B,U,Y
+*GET,uz2B,NODE,n2B,U,Z
+dx=(NX(n2B)+ux2B)-(NX(n1B)+ux1B)
+dy=(NY(n2B)+uy2B)-(NY(n1B)+uy1B)
+dz=(NZ(n2B)+uz2B)-(NZ(n1B)+uz1B)
+LenB=SQRT(dx*dx+dy*dy+dz*dz)
+HorB=SQRT(dx*dx+dz*dz)
+T0B=axfB*HorB/LenB
+
+*GET,ux1C,NODE,n1C,U,X
+*GET,uy1C,NODE,n1C,U,Y
+*GET,uz1C,NODE,n1C,U,Z
+*GET,ux2C,NODE,n2C,U,X
+*GET,uy2C,NODE,n2C,U,Y
+*GET,uz2C,NODE,n2C,U,Z
+dx=(NX(n2C)+ux2C)-(NX(n1C)+ux1C)
+dy=(NY(n2C)+uy2C)-(NY(n1C)+uy1C)
+dz=(NZ(n2C)+uz2C)-(NZ(n1C)+uz1C)
+LenC=SQRT(dx*dx+dy*dy+dz*dz)
+HorC=SQRT(dx*dx+dz*dz)
+T0C=axfC*HorC/LenC
+
+/OUT,resumo_T0,txt
+*VWRITE,T0A,T0B,T0C
+('T0,A = ',F10.3,' N   T0,B = ',F10.3,' N   T0,C = ',F10.3,' N')
+/OUT
+
+! ============ Imagem da forma deformada ============
+ALLSEL,ALL
+/SHOW,TERM
+/VIEW,1,1,1,1
+/ANG,1
+/DSCALE,1,1
+
+/SHOW,CLOSE
+
+FINISH
+
+/POST1
+SET,LAST
+ALLSEL,ALL
+ETABLE,AXF,SMISC,1
+*GET,nmx,NODE,0,NUM,MAX
+*CFOPEN,caso,txt
+*VWRITE,nForca,sbest
+('F',F8.0,E20.10)
+*DO,i,1,nmx
+  *IF,NSEL(i),EQ,1,THEN
+    x0=NX(i)
+    y0=NY(i)
+    z0=NZ(i)
+    xf=x0+UX(i)
+    yf=y0+UY(i)
+    zf=z0+UZ(i)
+    *VWRITE,i,x0,y0,z0,xf,yf,zf
+('N',F8.0,6E20.10)
+  *ENDIF
+*ENDDO
+*GET,emx,ELEM,0,NUM,MAX
+*DO,k,1,emx
+  n1=NELEM(k,1)
+  n2=NELEM(k,2)
+  *GET,sc,ELEM,k,ATTR,SECN
+  *GET,ax,ELEM,k,ETAB,AXF
+  *VWRITE,k,sc,n1,n2,ax
+('E',4F8.0,E20.10)
+*ENDDO
+*CFCLOS
+FINISH

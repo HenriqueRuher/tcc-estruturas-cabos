@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo analítico — Catenária</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Modelo analítico <span class="tag" id="tagModo">Caso geral 2D</span></h1>
+    <p class="sub" id="subModo">Cabo ideal (inextensível, sem rigidez à flexão): trechos com pesos diferentes e forças concentradas · reúne os Códigos 1 a 4 do TCC</p>
+  </div>
+  <div class="hdr-btns">
+    <div class="abas" role="tablist" aria-label="Modelo">
+      <button type="button" role="tab" data-modo="2d" class="on" aria-label="2D · caso geral" data-dica="2D · caso geral">
+        <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 21 H29 M3 21 V3" class="eixo"/><path d="M6 6 C 11 22, 22 22, 27 8"/><rect x="4.5" y="4.5" width="3" height="3"/><rect x="25.5" y="6.5" width="3" height="3"/></svg>
+      </button>
+      <button type="button" role="tab" data-modo="3d" aria-label="3D · dois cabos" data-dica="3D · dois cabos">
+        <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M2 18 L12 22 L30 16 L20 12 Z" class="eixo"/><path d="M5 4 C 8 16, 13 16, 16 13 M27 3 C 24 14, 19 15, 16 13 M16 13 C 15 18, 11 17, 10 10"/><circle cx="16" cy="13" r="1.8" class="no"/></svg>
+      </button>
+    </div>
+    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage" aria-label="Gráfico">
+    <div class="viewport" id="viewport">
+      <canvas id="cv" role="img" aria-label="Perfil do cabo pintado pela tração"></canvas>
+      <div class="toolbar" role="group" aria-label="Ações">
+        <span class="modo3d" hidden>
+          <button type="button" data-view="iso" class="on">Isométrica</button>
+          <button type="button" data-view="front">Frontal <small>XY</small></button>
+          <button type="button" data-view="side">Lateral <small>ZY</small></button>
+          <button type="button" data-view="top">Superior <small>XZ</small></button>
+        </span>
+        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+      </div>
+      <div class="legend" id="legend">
+        <div class="lg-title"><b>Tração T</b> <span>(N)</span></div>
+        <div class="lg-bar" id="lgBar"></div>
+        <div class="lg-ticks" id="lgTicks"></div>
+      </div>
+      <div class="hint" id="hint">passe o mouse sobre o cabo para ler os valores</div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <div class="card">
+      <h2 id="chTitulo">Tração ao longo do cabo</h2>
+      <canvas id="ch" class="grafico" height="230" role="img" aria-label="Tração ao longo do cabo"></canvas>
+    </div>
+  </section>
+
+  <aside class="side">
+    <!-- ======================= 2D ======================= -->
+    <div id="painel2d">
+      <section class="card">
+        <h2>Exemplos do TCC</h2>
+        <div class="icon-row" id="presets2d"></div>
+        <p class="note" id="presetNota"></p>
+      </section>
+
+      <section class="card">
+        <h2>Ancoragens <small>m</small></h2>
+        <div class="grade2">
+          <label><span>x<sub>A</sub></span><input type="number" step="any" id="xA"></label>
+          <label><span>y<sub>A</sub></span><input type="number" step="any" id="yA"></label>
+          <label><span>x<sub>B</sub></span><input type="number" step="any" id="xB"></label>
+          <label><span>y<sub>B</sub></span><input type="number" step="any" id="yB"></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Trechos <small>de A para B</small></h2>
+        <table class="tbl edit" id="tbTrechos"></table>
+        <button type="button" class="add" id="addTrecho">+ trecho</button>
+        <p class="note">Cada trecho tem seu comprimento L e peso por metro q (Código 3: cabo híbrido). O comprimento total é a soma.</p>
+      </section>
+
+      <section class="card">
+        <h2>Forças concentradas <small>verticais, para baixo</small></h2>
+        <table class="tbl edit" id="tbCargas"></table>
+        <button type="button" class="add" id="addCarga">+ força</button>
+        <p class="note">s = posição ao longo do cabo, medida a partir de A (Código 4).</p>
+      </section>
+
+      <section class="card">
+        <h2>Opções</h2>
+        <div class="checks">
+          <label><input type="checkbox" id="chParab"> comparar com a parábola</label>
+          <label><input type="checkbox" id="chCorda" checked> corda A–B</label>
+        </div>
+        <p class="note" id="notaParab"></p>
+      </section>
+
+      <section class="card">
+        <h2>Resultados</h2>
+        <p class="note warn" id="erro2d" hidden></p>
+        <div class="pgrid" id="res2d"></div>
+        <p class="note" id="nota2d"></p>
+        <div class="tablewrap"><table class="tbl" id="tbRes2d"></table></div>
+      </section>
+    </div>
+
+    <!-- ======================= 3D ======================= -->
+    <div id="painel3d" hidden>
+      <section class="card">
+        <h2>Cenários</h2>
+        <div class="icon-row" id="presets3d"></div>
+        <p class="note">Cabo 1 ancorado em A e B (plano z = 0), cortado pelo nó P a uma fração η do comprimento L<sub>1</sub>; cabo 2 de C até P (Código 5).</p>
+      </section>
+      <section class="card">
+        <h2>Ancoragens <small>m · y = vertical</small></h2>
+        <div class="grade3">
+          <span></span><b>x</b><b>y</b><b>z</b>
+          <b>A</b><input type="number" step="any" id="Ax"><input type="number" step="any" id="Ay"><input type="number" step="any" id="Az">
+          <b>B</b><input type="number" step="any" id="Bx"><input type="number" step="any" id="By"><input type="number" step="any" id="Bz">
+          <b>C</b><input type="number" step="any" id="Cx"><input type="number" step="any" id="Cy"><input type="number" step="any" id="Cz">
+        </div>
+      </section>
+      <section class="card">
+        <h2>Cabos</h2>
+        <div class="grade2">
+          <label><span>L<sub>1</sub> (m)</span><input type="number" step="any" id="L1"></label>
+          <label><span>η (fração de L<sub>1</sub> em A–P)</span><input type="number" step="any" id="eta"></label>
+          <label><span>L<sub>C</sub> (m)</span><input type="number" step="any" id="LC"></label>
+          <label><span>q<sub>1</sub> (N/m)</span><input type="number" step="any" id="q1"></label>
+          <label><span>q<sub>2</sub> (N/m)</span><input type="number" step="any" id="q2"></label>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Resultados</h2>
+        <p class="note warn" id="erro3d" hidden></p>
+        <div class="pgrid" id="res3d"></div>
+        <div class="tablewrap"><table class="tbl" id="tbRes3d"></table></div>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<script src="analitico_solver.js"></script>
+<script src="analitico.js"></script>
+</body>
+</html>
