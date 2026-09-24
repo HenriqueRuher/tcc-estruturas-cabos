@@ -1,0 +1,93 @@
+! =====================================================================
+! exportar_resultados.inp
+! Roda o catenaria3d.inp (modelo original, sem alteracoes) e depois
+! exporta, para TODOS os substeps convergidos, os resultados que o
+! visualizador web precisa:
+!   H  nsets nnos nelem
+!   N  no x0 y0 z0                 (coordenadas indeformadas)
+!   E  elem secao(1=AP,2=BP,3=CP) no_i no_j
+!   S  set tempo(fator de carga)
+!   U  no ux uy uz                 (deslocamentos do substep)
+!   B  elem FXi FXj MYi MYj MZi MZj TQi   (esforcos nos extremos I,J)
+! Saida: dados_ansys.txt
+! =====================================================================
+/INPUT,catenaria3d,inp
+
+/POST1
+ALLSEL,ALL
+SET,LAST
+*GET,nsets,ACTIVE,0,SET,NSET
+*GET,nnod,NODE,0,COUNT
+*GET,nel,ELEM,0,COUNT
+
+*CFOPEN,dados_ansys,txt
+
+*VWRITE,nsets,nnod,nel
+('H',3(1X,F10.0))
+
+! ---- coordenadas indeformadas -------------------------------------
+ni=0
+*DO,k,1,nnod
+  ni=NDNEXT(ni)
+  x0=NX(ni)
+  y0=NY(ni)
+  z0=NZ(ni)
+  *VWRITE,ni,x0,y0,z0
+  ('N',1X,F8.0,3(1X,E16.8))
+*ENDDO
+
+! ---- conectividade ------------------------------------------------
+ei=0
+*DO,k,1,nel
+  ei=ELNEXT(ei)
+  *GET,en1,ELEM,ei,NODE,1
+  *GET,en2,ELEM,ei,NODE,2
+  *GET,esec,ELEM,ei,ATTR,SECN
+  *VWRITE,ei,esec,en1,en2
+  ('E',4(1X,F8.0))
+*ENDDO
+
+! ---- resultados de cada substep -----------------------------------
+*DO,is,1,nsets
+  SET,,,,,,,is
+  *GET,tm,ACTIVE,0,SET,TIME
+
+  *VWRITE,is,tm
+  ('S',1X,F6.0,1X,E16.8)
+
+  ni=0
+  *DO,k,1,nnod
+    ni=NDNEXT(ni)
+    *GET,ux,NODE,ni,U,X
+    *GET,uy,NODE,ni,U,Y
+    *GET,uz,NODE,ni,U,Z
+    *VWRITE,ni,ux,uy,uz
+    ('U',1X,F8.0,3(1X,E16.8))
+  *ENDDO
+
+  ETABLE,ERASE
+  ETABLE,FXI,SMISC,1
+  ETABLE,FXJ,SMISC,14
+  ETABLE,MYI,SMISC,2
+  ETABLE,MYJ,SMISC,15
+  ETABLE,MZI,SMISC,3
+  ETABLE,MZJ,SMISC,16
+  ETABLE,TQI,SMISC,4
+
+  ei=0
+  *DO,k,1,nel
+    ei=ELNEXT(ei)
+    *GET,fxi,ELEM,ei,ETAB,FXI
+    *GET,fxj,ELEM,ei,ETAB,FXJ
+    *GET,myi,ELEM,ei,ETAB,MYI
+    *GET,myj,ELEM,ei,ETAB,MYJ
+    *GET,mzi,ELEM,ei,ETAB,MZI
+    *GET,mzj,ELEM,ei,ETAB,MZJ
+    *GET,tqi,ELEM,ei,ETAB,TQI
+    *VWRITE,ei,fxi,fxj,myi,myj,mzi,mzj,tqi
+    ('B',1X,F8.0,7(1X,E14.6))
+  *ENDDO
+*ENDDO
+
+*CFCLOS
+FINISH

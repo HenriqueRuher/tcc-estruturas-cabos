@@ -1,0 +1,17 @@
+# resultados brutos e arquivos gerados localmente
+ansys/casos_forca/
+ansys/figuras/
+analitico/figuras/
+visualizador/dados_ansys.txt
+__pycache__/
+*.pyc
+# arquivos do Ansys e do LaTeX
+*.rst
+*.esav
+*.full
+*.db
+*.log
+*.err
+*.aux
+*.toc
+*.out

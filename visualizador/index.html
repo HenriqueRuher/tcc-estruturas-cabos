@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estruturas formadas por cabos — Visualizador</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="inicio">
+  <header class="top" style="padding:0;max-width:none">
+    <div>
+      <h1>Estruturas formadas por cabos</h1>
+      <p class="sub">Modelos analíticos, numéricos e experimentais para análise de estruturas formadas por cabos · Trabalho de formatura · Escola Politécnica da USP</p>
+    </div>
+    <div class="hdr-btns">
+      <button id="btnCreditos" class="ghost creditos-btn" type="button" aria-haspopup="dialog" aria-controls="dlgCreditos" title="Créditos">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="16.5" cy="9" r="2.6"/><path d="M15.2 14.1c2.6-.3 4.7 1.2 5.3 4.4"/></svg>
+        <span>Créditos</span>
+      </button>
+      <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+    </div>
+  </header>
+
+  <div class="opcoes">
+    <a class="opcao" href="analitico.html">
+      <svg viewBox="0 0 240 120" aria-hidden="true">
+        <line x1="10" y1="104" x2="230" y2="104" stroke="var(--grid)" stroke-width="1.5"/>
+        <line x1="20" y1="10" x2="20" y2="110" stroke="var(--grid)" stroke-width="1.5"/>
+        <path d="M30 28 C 70 118, 150 118, 214 40" fill="none" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+        <path d="M30 28 C 75 108, 150 108, 214 40" fill="none" stroke="#d7191c" stroke-width="2" stroke-dasharray="6 4"/>
+        <rect x="24" y="22" width="12" height="12" fill="var(--ink)"/><rect x="208" y="34" width="12" height="12" fill="var(--ink)"/>
+        <text x="120" y="22" text-anchor="middle" font-size="14" fill="var(--ink-2)" font-style="italic">y = a·cosh((x − x₀)/a) + c</text>
+      </svg>
+      <h2>Analítico</h2>
+      <p>Soluções exatas da catenária, calculadas na hora a partir dos seus dados.</p>
+      <ul>
+        <li>Caso geral 2D: trechos com pesos diferentes e forças concentradas (Códigos 1–4)</li>
+        <li>Comparação com a parábola</li>
+        <li>Sistema 3D de dois cabos ligados num nó (Código 5)</li>
+      </ul>
+      <span class="ir">Abrir →</span>
+    </a>
+
+    <div class="opcao breve" aria-disabled="true">
+      <svg viewBox="0 0 240 120" aria-hidden="true">
+        <rect x="18" y="14" width="10" height="92" fill="var(--muted)"/><rect x="212" y="14" width="10" height="92" fill="var(--muted)"/>
+        <line x1="10" y1="106" x2="230" y2="106" stroke="var(--muted)" stroke-width="3"/>
+        <path d="M28 24 C 80 96, 160 96, 212 24" fill="none" stroke="var(--ink-2)" stroke-width="3"/>
+        <line x1="120" y1="78" x2="120" y2="98" stroke="var(--ink-2)" stroke-width="2"/>
+        <rect x="112" y="96" width="16" height="10" fill="var(--ink-2)"/>
+        <circle cx="70" cy="62" r="4" fill="var(--accent)"/><circle cx="170" cy="62" r="4" fill="var(--accent)"/>
+      </svg>
+      <h2>Experimento</h2>
+      <p>Resultados medidos na bancada experimental, para comparar com os modelos.</p>
+      <ul><li>Em preparação</li></ul>
+      <span class="ir">Em breve</span>
+    </div>
+
+    <a class="opcao" href="ansys.html">
+      <svg viewBox="0 0 240 120" aria-hidden="true">
+        <path d="M22 20 C 60 96, 100 100, 120 82" fill="none" stroke="#35b779" stroke-width="4" stroke-linecap="round"/>
+        <path d="M218 32 C 180 100, 140 96, 120 82" fill="none" stroke="#b5de2b" stroke-width="4" stroke-linecap="round"/>
+        <path d="M120 82 C 110 106, 80 110, 62 64" fill="none" stroke="#31688e" stroke-width="4" stroke-linecap="round"/>
+        <rect x="16" y="14" width="11" height="11" fill="var(--ink)"/><rect x="212" y="26" width="11" height="11" fill="var(--ink)"/><rect x="56" y="58" width="11" height="11" fill="var(--ink)"/>
+        <circle cx="120" cy="82" r="5.5" fill="var(--surface)" stroke="var(--ink)" stroke-width="2.5"/>
+        <g stroke="var(--muted)" stroke-width="1" opacity=".6"><line x1="10" y1="112" x2="230" y2="112"/><line x1="40" y1="118" x2="200" y2="104"/></g>
+      </svg>
+      <h2>Simulação (Ansys)</h2>
+      <p>Modelo em elementos finitos do Estudo de Caso #3, com animação da convergência e comparação com o analítico.</p>
+      <ul>
+        <li>Três cabos ligados no nó P (BEAM188)</li>
+        <li>200 casos de força concentrada</li>
+        <li>Cena 3D de apresentação</li>
+      </ul>
+      <span class="ir">Abrir →</span>
+    </a>
+  </div>
+
+  <p class="rodape-inicio">
+    <a href="https://github.com/HenriqueRuher/tcc-estruturas-cabos" target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      Código-fonte no GitHub
+    </a>
+    <span>· modelos analíticos, modelo do Ansys e este visualizador</span>
+  </p>
+</main>
+
+<dialog id="dlgCreditos" class="creditos" aria-labelledby="crTitulo" tabindex="-1" autofocus>
+  <button type="button" class="cr-fechar" id="crFechar" aria-label="Fechar">×</button>
+  <div class="cr-topo">
+    <svg class="cr-marca" viewBox="0 0 64 40" aria-hidden="true">
+      <rect x="2" y="4" width="6" height="6" rx="1"/><rect x="56" y="10" width="6" height="6" rx="1"/>
+      <path d="M8 8 C 22 40, 42 40, 56 13" fill="none" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>
+    <p class="cr-rotulo">Trabalho de Formatura · Engenharia Mecânica</p>
+    <h2 id="crTitulo">Modelos Analíticos, Numéricos e Experimentais para Análise de Estruturas Formadas por Cabos</h2>
+    <p class="cr-inst">Escola Politécnica da Universidade de São Paulo · 2026</p>
+  </div>
+
+  <h3>Autores</h3>
+  <ul class="cr-pessoas">
+    <li><a class="cr-link" href="https://br.linkedin.com/in/gustavo-armellini-234254362" target="_blank" rel="noopener noreferrer" title="Abrir o LinkedIn (nova aba)">
+      <span class="cr-avatar" aria-hidden="true">GA</span>
+      <div><b>Gustavo Armellini</b><small>Graduando em Engenharia Mecânica</small></div>
+      <svg class="cr-ext" viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6M17 3l-8 8M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
+      <span class="sr-only">(LinkedIn, abre em nova aba)</span>
+    </a></li>
+    <li><a class="cr-link" href="https://www.linkedin.com/in/henrique-ruher" target="_blank" rel="noopener noreferrer" title="Abrir o LinkedIn (nova aba)">
+      <span class="cr-avatar" aria-hidden="true">HV</span>
+      <div><b>Henrique Ayrton Rüher Vicente</b><small>Graduando em Engenharia Mecânica</small></div>
+      <svg class="cr-ext" viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6M17 3l-8 8M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
+      <span class="sr-only">(LinkedIn, abre em nova aba)</span>
+    </a></li>
+  </ul>
+
+  <h3>Orientador</h3>
+  <ul class="cr-pessoas">
+    <li><a class="cr-link" href="https://app.poli.usp.br/lattes/docentes/5981713066334644" target="_blank" rel="noopener noreferrer" title="Abrir o perfil do professor (nova aba)">
+      <span class="cr-avatar cr-prof" aria-hidden="true">RR</span>
+      <div><b>Prof. Dr. Roberto Ramos Júnior</b><small>Depto. de Engenharia Mecânica · Poli-USP</small></div>
+      <svg class="cr-ext" viewBox="0 0 20 20" aria-hidden="true"><path d="M11 3h6v6M17 3l-8 8M15 11v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>
+      <span class="sr-only">(abre em nova aba)</span>
+    </a></li>
+  </ul>
+
+  <p class="cr-sobre">Este visualizador reúne as três frentes do trabalho: as soluções analíticas da catenária, a simulação em elementos finitos no Ansys e, em breve, os resultados experimentais.</p>
+  <div class="cr-rodape"><button type="button" class="primary" id="crOk">Fechar</button></div>
+</dialog>
+<script>
+(() => {
+  try { const t = localStorage.getItem('cat3d-tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* sem storage */ }
+  // créditos: <dialog> modal (Esc fecha; clique fora do cartão também fecha)
+  const dlg = document.getElementById('dlgCreditos');
+  const fechar = () => dlg.close();
+  document.getElementById('btnCreditos').addEventListener('click', () => { dlg.showModal(); dlg.focus(); });
+  document.getElementById('crFechar').addEventListener('click', fechar);
+  document.getElementById('crOk').addEventListener('click', fechar);
+  dlg.addEventListener('click', (e) => {
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) fechar();
+  });
+  document.getElementById('btnTema').addEventListener('click', () => {
+    const atual = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const novo = atual === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = novo;
+    try { localStorage.setItem('cat3d-tema', novo); } catch (e) { /* sem storage */ }
+  });
+})();
+</script>
+</body>
+</html>
