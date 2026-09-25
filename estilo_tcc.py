@@ -131,12 +131,16 @@ def vertice(ax, p, label='Vértice', virtual=False):
             alpha=0.55 if virtual else 1)
 
 
-def forca(ax, p, comprimento, texto=None, cor=DESTAQUE):
+def forca(ax, p, comprimento, texto=None, cor=DESTAQUE, lado='dir'):
+    """seta vertical para baixo; o rótulo fica à direita ou à esquerda da ponta ('lado'),
+    para não cair em cima do cabo"""
     ax.annotate('', xy=(p[0], p[1] - comprimento), xytext=p,
                 arrowprops=dict(arrowstyle='-|>', color=cor, lw=2.2, mutation_scale=16), zorder=8)
     if texto:
-        ax.annotate(texto, (p[0], p[1] - comprimento), xytext=(6, 2), textcoords='offset points',
-                    color=cor, fontweight='bold', va='bottom')
+        dx, ha = (7, 'left') if lado == 'dir' else (-7, 'right')
+        ax.annotate(texto, (p[0], p[1] - comprimento), xytext=(dx, 0), textcoords='offset points',
+                    color=cor, fontweight='bold', va='center', ha=ha,
+                    bbox=dict(fc='white', ec='none', pad=1.2, alpha=0.85))
 
 
 def cabo_colorido(fig, ax, x, y, T, rotulo='Tração $T$ [N]', lw=5):

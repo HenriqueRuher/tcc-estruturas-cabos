@@ -21,8 +21,20 @@ E.aplicar()
 PASTA = AQUI / 'figuras'
 
 
+# gráficos do Capítulo 3: o texto do TCC mantém as figuras originais, então a versão no
+# estilo único fica só em analitico/figuras/ (não sobrescreve Texto/Imagens)
+SO_PASTA = {'Grafico_Esforcos', 'Grafico_Esforcos_02', 'Gráfico3'}
+
+
 def salvar(fig, nome):
-    E.salvar(fig, nome, PASTA)
+    if nome in SO_PASTA:
+        import matplotlib.pyplot as plt
+        PASTA.mkdir(parents=True, exist_ok=True)
+        fig.savefig(PASTA / f'{nome}.png')
+        plt.close(fig)
+        print('salvo (só em analitico/figuras):', nome)
+    else:
+        E.salvar(fig, nome, PASTA)
 
 
 def curva(an, n=600):
@@ -222,7 +234,9 @@ def forca_caso(nome, A, B, L, q, zeta, P, seta=2.0):
     C = an.ponto(sC)[0]
     if P > 0:
         E.no(ax, C, f'Ponto de aplicação C ({fmt(C[0])}; {fmt(C[1])})')
-        E.forca(ax, C, seta, f'P = {fmt(P, 0)} N')
+        E.forca(ax, C, seta, f'P = {fmt(P, 0)} N', lado='esq' if sC <= 0 else 'dir')
+        if sC <= 0:  # rótulo à esquerda da ancoragem: abre espaço para ele dentro do gráfico
+            ax.set_xlim(A[0] - 7, B[0] + 1)
     E.ancoragens(ax, [A, B], ['A', 'B'])
     E.vertice(ax, an.mais_baixo(), 'Ponto mais baixo')
     ax.set_title(f'$T_0$ = {fmt(an.H)} N', loc='right', fontsize=10, fontweight='normal', color=E.TINTA2)
@@ -254,6 +268,10 @@ def sistema_3d(nome, eta=0.5, q2=20):
     (xp, yp, zp), T0, C1, pesos, _ = resolver_sistema_3d(pA, pB, pC, 50, 30, 40, q2, eta, verbose=False)
     fig = plt.figure(figsize=(7.6, 6.2))
     ax = fig.add_subplot(111, projection='3d')
+    # ordem de desenho fixa (o matplotlib 3D ordena por profundidade e pode pôr o ramal C–P
+    # por cima do cabo principal): postes < C–P < A–P < B–P < marcadores
+    ax.computed_zorder = False
+    Z = {'C': 3, 'A': 4, 'B': 5}
     anc = {'A': pA, 'B': pB, 'C': pC}
     cores = {'A': E.C1, 'B': E.C2, 'C': E.C3}
     nomes = {'A': 'Trecho A–P (cabo 1)', 'B': 'Trecho B–P (cabo 1)', 'C': 'Trecho C–P (cabo 2)'}
@@ -264,13 +282,13 @@ def sistema_3d(nome, eta=0.5, q2=20):
         t = np.linspace(0, 1, 200)
         r = t * H
         y = yp + T0[i] / pesos[i] * (np.cosh(pesos[i] * r / T0[i] + C1[i]) - np.cosh(C1[i]))
-        ax.plot(xp + t * v[0], zp + t * v[1], y, color=cores[i], lw=2.4,
+        ax.plot(xp + t * v[0], zp + t * v[1], y, color=cores[i], lw=2.4, zorder=Z[i],
                 label=f'{nomes[i]}: $T_0$ = {fmt(T0[i], 1)} N')
-        ax.plot([p[0], p[0]], [p[2], p[2]], [0, p[1]], color=E.TINTA2, lw=3, alpha=0.8)
-        ax.text(p[0], p[2], p[1] + 1.2, i, fontweight='bold', ha='center')
+        ax.plot([p[0], p[0]], [p[2], p[2]], [0, p[1]], color=E.TINTA2, lw=3, alpha=0.8, zorder=1)
+        ax.text(p[0], p[2], p[1] + 1.2, i, fontweight='bold', ha='center', zorder=7)
     ax.scatter(*zip(*[(p[0], p[2], p[1]) for p in anc.values()]), marker='^', s=60, color=E.TINTA,
-               depthshade=False)
-    ax.scatter([xp], [zp], [yp], s=60, color=E.DESTAQUE, edgecolor='white', depthshade=False,
+               depthshade=False, zorder=6)
+    ax.scatter([xp], [zp], [yp], s=60, color=E.DESTAQUE, edgecolor='white', depthshade=False, zorder=7,
                label=f'Nó P ({fmt(xp)}; {fmt(yp)}; {fmt(zp)}) m')
     ax.set_xlabel('$x$ [m]')
     ax.set_ylabel('$z$ [m]')
