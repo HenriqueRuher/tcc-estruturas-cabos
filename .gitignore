@@ -1,5 +1,6 @@
 # resultados brutos e arquivos gerados localmente
 ansys/casos_forca/
+ansys/casos_2d/*.json
 ansys/figuras/
 analitico/figuras/
 visualizador/dados_ansys.txt

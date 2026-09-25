@@ -10,6 +10,8 @@ flexão, sob peso próprio distribuído ao longo do comprimento (catenária).
 | `codigo3_dois_pesos.py` | C | Cabo híbrido: dois trechos com pesos por metro diferentes (q₁, q₂). |
 | `codigo4_forca_concentrada.py` | D | Cabo com uma força concentrada P aplicada a uma distância m (medida ao longo do cabo) de A. |
 | `codigo5_sistema_3d.py` | E | Estudo de Caso #3: dois cabos ligados num nó P fora do plano (sistema de 9 equações), com os casos principal e extremos. |
+| `solver_geral.py` | — | Caso geral 2D (trechos com pesos diferentes + forças concentradas), mesmo método do visualizador; reproduz os Códigos 1, 3 e 4 e é a referência de `../ansys/casos_2d.py`. |
+| `figuras_analiticas.py` | — | Gera todos os gráficos dos Capítulos 3 e 4 do TCC no estilo único (`../estilo_tcc.py`). |
 
 ## Como rodar
 

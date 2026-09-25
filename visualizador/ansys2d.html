@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulação Ansys — Casos 2D</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Casos 2D <span class="tag">Simulação Ansys</span></h1>
+    <p class="sub">Casos dos Capítulos 3 e 4 do TCC simulados no ANSYS com o mesmo modelo do caso 3D · BEAM188 · EI = 15,7 N·m² · 40 elementos por trecho</p>
+  </div>
+  <div class="hdr-btns">
+    <div class="abas" role="tablist" aria-label="Simulação">
+      <button type="button" role="tab" data-ir="ansys.html" aria-label="3D · três cabos" data-dica="3D · três cabos">
+        <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M2 18 L12 22 L30 16 L20 12 Z" class="eixo"/><path d="M5 4 C 8 16, 13 16, 16 13 M27 3 C 24 14, 19 15, 16 13 M16 13 C 15 18, 11 17, 10 10"/><circle cx="16" cy="13" r="1.8" class="no"/></svg>
+      </button>
+      <button type="button" role="tab" class="on" aria-selected="true" aria-label="2D · casos dos Capítulos 3 e 4" data-dica="2D · casos dos Caps. 3 e 4">
+        <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 21 H29 M3 21 V3" class="eixo"/><path d="M6 6 C 11 22, 22 22, 27 8"/><rect x="4.5" y="4.5" width="3" height="3"/><rect x="25.5" y="6.5" width="3" height="3"/></svg>
+      </button>
+    </div>
+    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage" aria-label="Gráfico">
+    <div class="viewport" id="viewport">
+      <canvas id="cv" role="img" aria-label="Perfil do cabo: resultado do ANSYS e curva analítica"></canvas>
+      <div class="toolbar" role="group" aria-label="Ações">
+        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+      </div>
+      <div class="legend" id="legend">
+        <div class="lg-title"><b id="lgName">Força axial N</b> <span>(N)</span></div>
+        <div class="lg-bar" id="lgBar"></div>
+        <div class="lg-ticks" id="lgTicks"></div>
+      </div>
+      <div class="hint">passe o mouse sobre o cabo para ler os valores</div>
+      <div class="tip" id="tip" hidden></div>
+    </div>
+    <div class="card">
+      <h2 id="chTitulo">Tração ao longo do cabo</h2>
+      <canvas id="ch" class="grafico" height="230" role="img" aria-label="Tração ao longo do cabo: analítico e ANSYS"></canvas>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="card">
+      <h2>Casos do TCC</h2>
+      <div class="icon-row" id="casos"></div>
+      <p class="res" id="casoNota"></p>
+      <p class="note">Mesmos dados de entrada do TCC. A força na ancoragem não foi simulada: ela vai direto para o apoio e o modelo coincide com o de P = 0.</p>
+    </section>
+
+    <section class="card">
+      <h2>Exibição</h2>
+      <div class="row">
+        <label>Cores
+          <select id="cmap">
+            <option value="viridis">Viridis (perceptual)</option>
+            <option value="ansys">Arco-íris (estilo ANSYS)</option>
+          </select>
+        </label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="chCorda"> corda A–B</label>
+        <label><input type="checkbox" id="chNos"> nós da malha</label>
+      </div>
+      <p class="note"><b>Cabo colorido:</b> resultado do ANSYS pintado pela força axial N, com os mapas de cores da aba 3D. <b>Nós da malha:</b> nós do modelo na posição final.</p>
+    </section>
+
+    <section class="card">
+      <h2>Modelo analítico <small>curva em vermelho</small></h2>
+      <div class="icon-row" id="compGroup" role="radiogroup" aria-label="Comparação com o modelo analítico">
+        <button type="button" data-comp="mef">Só ANSYS</button>
+        <button type="button" data-comp="sobrepor">ANSYS + analítica</button>
+        <button type="button" data-comp="nos">Analítica + nós ANSYS</button>
+      </div>
+      <p class="note"><b>Só ANSYS:</b> resultado do MEF. <b>ANSYS + analítica:</b> sobrepõe, em vermelho, a solução exata do caso geral 2D. <b>Analítica + nós ANSYS:</b> curva analítica com os nós do MEF, para conferir a aderência.</p>
+    </section>
+
+    <section class="card">
+      <h2>Comparação com o analítico</h2>
+      <div class="pgrid" id="resumo"></div>
+      <div class="tablewrap"><table class="tbl" id="tblComp"></table></div>
+      <p class="note"><b>T₀ = N·cos φ:</b> média na metade central de cada trecho. <b>T em A / B:</b> força axial do elemento na ancoragem × tração analítica no meio dele. <b>Ponto notável:</b> troca de peso, força ou vértice. <b>E<sub>RMS</sub> = √(Σd²/n)</b>, com d = distância de cada nó à curva analítica.</p>
+    </section>
+
+    <section class="card">
+      <h2>Todos os casos</h2>
+      <div class="tablewrap"><table class="tbl clicavel" id="tblTodos"></table></div>
+      <p class="note">Resumo de todos os casos, como no TCC. Clique numa linha para abrir o caso.</p>
+    </section>
+
+    <section class="card">
+      <h2>Modelo no ANSYS</h2>
+      <div class="pgrid" id="modelo"></div>
+      <p class="note">Mesmos parâmetros do caso 3D: BEAM188, seção ASEC com EI reduzido, peso pelo comprimento de cada elemento, forma inicial parabólica, NLGEOM e estabilização que se anula no fim. Em 2D o cabo fica travado no plano z = 0; a força entra num passo de carga separado.</p>
+    </section>
+  </aside>
+</main>
+
+<footer class="foot">
+  Resultados de <code>ansys/casos_2d.py</code> · gerados em <span id="gerado"></span>
+</footer>
+
+<script src="casos2d.js" onerror="window.CASOS2D=null"></script>
+<script src="ansys2d.js"></script>
+<script src="notas.js"></script>
+</body>
+</html>
