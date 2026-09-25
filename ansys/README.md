@@ -11,6 +11,7 @@ peso próprio. A explicação completa de cada bloco do modelo e do porquê de c
 | `rodar_exportacao.ps1` | Faz tudo: roda o Ansys numa pasta temporária e gera `../visualizador/dados.js`. |
 | `estudo_rigidez.py` | Estudo paramétrico da rigidez à flexão (fator do momento de inércia) comparado com o modelo analítico. |
 | `casos_forca.py` | Gera, roda e converte os 200 casos de força concentrada (cabos C–P e A–P, 10 posições × 10 intensidades) em `../visualizador/casos.js`. |
+| `casos_2d.py` | Casos 2D dos Capítulos 3 e 4 com o mesmo modelo do caso 3D: gera, roda, compara com o analítico e grava `casos_2d/resumo.csv`, as figuras e `../visualizador/casos2d.js`. |
 | `figuras_mef.py` | Gera as figuras do capítulo de elementos finitos em `figuras/`. |
 
 ## Requisitos
@@ -26,6 +27,7 @@ peso próprio. A explicação completa de cada bloco do modelo e do porquê de c
 python estudo_rigidez.py 1 0.1 0.01     # estudo de rigidez (um caso a cada ~30 s)
 python casos_forca.py                   # 200 casos (~75 min; um por vez, pela licença Student)
 python casos_forca.py --so-converter    # só remonta o casos.js a partir de casos_forca/
+python casos_2d.py                      # 12 casos 2D (~25 s cada); --so-converter só refaz tabela/figuras/js
 python figuras_mef.py
 ```
 

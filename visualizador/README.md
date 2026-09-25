@@ -13,5 +13,7 @@ navegador. Versão online: https://henriqueruher.github.io/tcc-estruturas-cabos/
 | `style.css` | Estilos (tema claro e escuro). |
 | `dados.js` | Resultados do caso principal, todos os subpassos (gerado por `../ansys/rodar_exportacao.ps1`). |
 | `casos.js` | 200 casos de força concentrada (gerado por `../ansys/casos_forca.py`). |
+| `ansys2d.html`, `ansys2d.js` | Aba 2D da simulação: casos dos Capítulos 3 e 4 no Ansys comparados com o analítico. |
+| `casos2d.js` | Resultados dos 12 casos 2D (gerado por `../ansys/casos_2d.py`). |
 | `malhas.js` | Malhas 3D da cena de apresentação (árvores e cabana). |
 | `converter_dados.mjs` | Converte a exportação do Ansys (`dados_ansys.txt`) em `dados.js` (Node.js). |

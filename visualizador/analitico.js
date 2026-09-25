@@ -57,15 +57,15 @@ const S = {
 };
 
 const PRESETS_2D = [
-  { id: 'c1', nome: 'Cód. 1', sub: 'cabo simples', nota: 'Apêndice A: cabo entre (0; 10) e (30; 20) m, L = 35 m, q = 45 N/m. Mostra o vértice e o comprimento crítico L*.',
+  { id: 'c1', nome: 'Cód. 1', sub: 'cabo simples', nota: 'Cabo simples entre duas ancoragens: vértice e comprimento crítico L*.',
     e: { A: [0, 10], B: [30, 20], trechos: [{ L: 35, q: 45 }], cargas: [] }, parab: false },
-  { id: 'c2', nome: 'Cód. 2', sub: 'exato × parábola', nota: 'Apêndice B: mesmo cabo, com a distribuição de tração e a comparação com a parábola de mesmo comprimento de arco.',
+  { id: 'c2', nome: 'Cód. 2', sub: 'exato × parábola', nota: 'Mesmo cabo, com a distribuição de tração e a comparação com a parábola de mesmo comprimento.',
     e: { A: [0, 10], B: [30, 20], trechos: [{ L: 35, q: 45 }], cargas: [] }, parab: true },
-  { id: 'c3', nome: 'Cód. 3', sub: 'dois pesos', nota: 'Apêndice C: cabo híbrido entre (0; 10) e (40; 20) m, 30 m com q = 20 N/m seguidos de 20 m com q = 10 N/m.',
+  { id: 'c3', nome: 'Cód. 3', sub: 'dois pesos', nota: 'Cabo híbrido: dois trechos com pesos por metro diferentes.',
     e: { A: [0, 10], B: [40, 20], trechos: [{ L: 30, q: 20 }, { L: 20, q: 10 }], cargas: [] }, parab: false },
-  { id: 'c4', nome: 'Cód. 4', sub: 'força concentrada', nota: 'Apêndice D: cabo entre (0; 10) e (30; 20) m, L = 35 m, q = 10 N/m e P = 150 N a 17,5 m de A.',
+  { id: 'c4', nome: 'Cód. 4', sub: 'força concentrada', nota: 'Cabo com uma força concentrada P aplicada ao longo do arco.',
     e: { A: [0, 10], B: [30, 20], trechos: [{ L: 35, q: 10 }], cargas: [{ s: 17.5, P: 150 }] }, parab: false },
-  { id: 'geral', nome: 'Geral', sub: 'tudo junto', nota: 'Caso geral: três trechos com pesos diferentes e duas forças concentradas, todos resolvidos pelo mesmo sistema.',
+  { id: 'geral', nome: 'Geral', sub: 'tudo junto', nota: 'Caso geral: vários trechos e forças, resolvidos pelo mesmo sistema.',
     e: { A: [0, 12], B: [45, 18], trechos: [{ L: 18, q: 30 }, { L: 15, q: 60 }, { L: 20, q: 15 }], cargas: [{ s: 9, P: 250 }, { s: 40, P: 120 }] }, parab: false },
 ];
 const PRESETS_3D = [

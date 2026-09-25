@@ -29,21 +29,19 @@ const QTY = {
     nome: 'Tensão axial σ = N/A', un: 'MPa', dig: 2,
     curto: 'σ axial',
     elem: (b) => [b[0] / AREA / 1e6, b[1] / AREA / 1e6],
-    nota: `Tensão normal média na seção do cabo: força axial dividida pela área A = π·r² com r = ${Math.round(PR.raio * 100)} cm (${(AREA * 1e4).toFixed(2).replace('.', ',')} cm²). `
-      + `A rigidez à flexão foi reduzida a 1/${Math.round(1 / (PR.fI || 1))} só pelo momento de inércia (seção genérica ASEC); a área, e portanto EA e σ, não mudam. `
-      + 'É a grandeza fisicamente relevante para um cabo ideal.',
+    nota: 'Tensão normal média na seção: σ = N/A, com A = π·r². Só a inércia foi reduzida (seção ASEC), então EA e σ não mudam. É a grandeza relevante para um cabo ideal.',
   },
   forca: {
     nome: 'Força axial N', un: 'N', dig: 0,
     curto: 'N',
     elem: (b) => [b[0], b[1]],
-    nota: 'Esforço normal (SMISC 1 do BEAM188) — é o mesmo AXF listado nos arquivos forcas_linha*.txt. Positivo = tração.',
+    nota: 'Esforço normal N do BEAM188 (o mesmo AXF dos arquivos de forças). N > 0 = tração.',
   },
   desl: {
     nome: 'Deslocamento |u|', un: 'm', dig: 2,
     curto: '|u|',
     node: true,
-    nota: 'Módulo do deslocamento nodal em relação à forma inicial parabólica (a folga do cabo vem dessa forma inicial).',
+    nota: 'Módulo |u| do deslocamento de cada nó em relação à forma inicial parabólica.',
   },
 };
 const QKEYS = Object.keys(QTY);
@@ -1420,9 +1418,9 @@ function atualizarResultados() {
       return `<tr class="${final ? '' : 'dim'}"><td>${nm}</td><td>${fmt(a, d)}</td><td>${fmt(t, d)}</td><td class="delta">${dt}</td></tr>`;
     }).join('');
   $('#tccNote').textContent = comCaso
-    ? 'Com uma força concentrada selecionada, a tabela mostra o caso principal (sem força), que é o único que o TCC resolve analiticamente.'
-    : final ? 'Passo final (carga total). Referência: modelo analítico do TCC, Tabela 4.14.'
-      : 'Carga parcial: a comparação só vale no último passo (fator de carga 1,000).';
+    ? 'Com força concentrada, a tabela mostra o caso sem força, o único resolvido analiticamente.'
+    : final ? 'Passo final (carga total): comparação válida.'
+      : 'Carga parcial: a comparação só vale no último passo.';
 }
 
 // ---------------------------------------------------------------- gráficos
@@ -1669,9 +1667,8 @@ function iniciarCasos() {
   if (!temCasos()) return;
   $('#cardCasos').hidden = false;
   if (!CASOS.cabos.includes(S.casoCabo)) S.casoCabo = CASOS.cabos[0];
-  $('#casoNota').textContent = `${CASOS.casos.length} casos rodados no ANSYS com o mesmo modelo do caso principal, `
-    + 'mas com rigidez à flexão EI/10 em vez de EI/100 (com EI/100 a força concentrada não converge). '
-    + 'A força entra num 2º passo de carga, depois do peso próprio.';
+  $('#casoNota').textContent = 'Mesmo modelo do caso principal, com EI maior para a força convergir. '
+    + 'A força entra num passo de carga separado, depois do peso próprio.';
   const grp = $('#casoCaboGrp');
   grp.innerHTML = [...CASOS.cabos, 'off'].map((k) =>
     `<button type="button" data-cabo="${k}" role="radio">${ICONE_CABO[k] || ''}<span>${NOME_CABO[k] || k}</span><small>${SUB_CABO[k] || ''}</small></button>`).join('');
@@ -1725,14 +1722,8 @@ function atualizarComp() {
     b.disabled = !ANALITICA && b.dataset.comp !== 'mef';
   });
   if (!ANALITICA) { nota.textContent = 'O sistema analítico não convergiu para estes parâmetros.'; return; }
-  const [x, y, z] = ANALITICA.P, T = ANALITICA.T0;
-  let txt = `Solução do sistema de 9 equações do TCC com os mesmos parâmetros do ANSYS: P = (${fmt(x, 2)}; ${fmt(y, 2)}; ${fmt(z, 2)}) m, `
-    + `T0 = ${fmt(T[0], 1)} / ${fmt(T[1], 1)} / ${fmt(T[2], 1)} N. A curva é o equilíbrio final (carga total); compare com o último passo.`;
-  if (ERRO) {
-    txt += ' Erro RMS (mínimos quadrados) dos nós do ANSYS à curva, posição 3D / forma no plano: '
-      + CAB.map((cab, i) => `${cab.nome} ${fmt(ERRO[i].pos, 3)} / ${fmt(ERRO[i].forma, 3)} m`).join(' · ') + '.';
-  }
-  if (casoAtivo()) txt += ' Oculta enquanto um caso de força concentrada estiver selecionado (o modelo analítico não inclui essa força).';
+  let txt = 'A curva analítica é o equilíbrio final (carga total): compare com o último substep.';
+  if (casoAtivo()) txt += ' Fica oculta com uma força concentrada selecionada, pois o analítico não inclui a força.';
   nota.textContent = txt;
 }
 $('#compGroup').addEventListener('click', (e) => {

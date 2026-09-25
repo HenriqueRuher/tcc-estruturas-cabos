@@ -76,14 +76,14 @@
         <h2>Trechos <small>de A para B</small></h2>
         <table class="tbl edit" id="tbTrechos"></table>
         <button type="button" class="add" id="addTrecho">+ trecho</button>
-        <p class="note">Cada trecho tem seu comprimento L e peso por metro q (Código 3: cabo híbrido). O comprimento total é a soma.</p>
+        <p class="note">Cada trecho tem comprimento L e peso por metro q; comprimento total = ΣL.</p>
       </section>
 
       <section class="card">
         <h2>Forças concentradas <small>verticais, para baixo</small></h2>
         <table class="tbl edit" id="tbCargas"></table>
         <button type="button" class="add" id="addCarga">+ força</button>
-        <p class="note">s = posição ao longo do cabo, medida a partir de A (Código 4).</p>
+        <p class="note"><i>s</i>: posição da força ao longo do cabo, medida a partir de A.</p>
       </section>
 
       <section class="card">
@@ -92,14 +92,14 @@
           <label><input type="checkbox" id="chParab"> comparar com a parábola</label>
           <label><input type="checkbox" id="chCorda" checked> corda A–B</label>
         </div>
-        <p class="note" id="notaParab"></p>
+        <p class="res" id="notaParab"></p>
       </section>
 
       <section class="card">
         <h2>Resultados</h2>
         <p class="note warn" id="erro2d" hidden></p>
         <div class="pgrid" id="res2d"></div>
-        <p class="note" id="nota2d"></p>
+        <p class="res" id="nota2d"></p>
         <div class="tablewrap"><table class="tbl" id="tbRes2d"></table></div>
       </section>
     </div>
@@ -109,7 +109,7 @@
       <section class="card">
         <h2>Cenários</h2>
         <div class="icon-row" id="presets3d"></div>
-        <p class="note">Cabo 1 ancorado em A e B (plano z = 0), cortado pelo nó P a uma fração η do comprimento L<sub>1</sub>; cabo 2 de C até P (Código 5).</p>
+        <p class="note">Cabo principal ancorado em A e B (plano z = 0) e dividido no nó P a uma fração η de L<sub>1</sub>; o ramal liga C a P.</p>
       </section>
       <section class="card">
         <h2>Ancoragens <small>m · y = vertical</small></h2>

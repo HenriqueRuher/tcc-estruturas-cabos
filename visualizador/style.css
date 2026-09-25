@@ -424,3 +424,26 @@ summary > .info-pop { top: 46px; font-weight: 400; cursor: default; }
 .rodape-inicio a { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); text-decoration: none; font-weight: 600; }
 .rodape-inicio a:hover { color: var(--accent); }
 .rodape-inicio svg { width: 17px; height: 17px; fill: currentColor; }
+
+/* ---------- aba 2D da simulação (ansys2d.html) ---------- */
+#casos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#casos button { line-height: 1.25; padding: 6px 6px; }
+#casos button small { font-size: 11px; }
+#casos button.on small { color: inherit; opacity: .85; }
+@media (max-width: 520px) { #casos { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.tbl.clicavel tbody tr { cursor: pointer; }
+.tbl.clicavel tbody tr:hover td { background: var(--surface-2); }
+.tbl.clicavel tbody tr.on td { background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
+/* resultados em texto que ficam visíveis no card (fora do ícone "i") */
+.res { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.res:empty { display: none; }
+/* logo do Ansys no card da página inicial (versão clara/escura conforme o tema) */
+.titulo-logo { display: flex; align-items: center; gap: 10px; }
+.titulo-logo img { height: 22px; width: auto; transform: translateY(1px); }
+.logo-escuro { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-claro { display: none; }
+  :root:not([data-theme="light"]) .logo-escuro { display: inline; }
+}
+:root[data-theme="dark"] .logo-claro { display: none; }
+:root[data-theme="dark"] .logo-escuro { display: inline; }
