@@ -91,6 +91,69 @@ def catenaria_vs_parabola():
     salvar(fig, 'Gráfico3')
 
 
+def esquema_origem_s():
+    """Origem da coordenada de arco s no vértice: vértice real (esquerda) e virtual (direita).
+    Os dois painéis têm o mesmo tamanho e a mesma escala; os rótulos ficam em regiões livres."""
+    import matplotlib.pyplot as plt
+    a = 12.0
+    y = lambda x: a * (np.cosh(x / a) - 1)
+    yl = lambda x: np.sinh(x / a)                       # inclinação
+
+    def arco_seta(ax, x0, x1, d, cor, rot, pos_rot, ha):
+        """seta paralela ao cabo (deslocada d para o lado côncavo), de x0 até x1"""
+        xs = np.linspace(x0, x1, 80)
+        n = np.column_stack([-yl(xs), np.ones_like(xs)]) / np.hypot(yl(xs), 1)[:, None]
+        p = np.column_stack([xs, y(xs)]) + d * n
+        ax.plot(p[:-3, 0], p[:-3, 1], color=cor, lw=1.4)
+        ax.annotate('', xy=p[-1], xytext=p[-4], arrowprops=dict(arrowstyle='-|>', color=cor, lw=1.4, mutation_scale=13))
+        ax.text(*pos_rot, rot, color=cor, ha=ha, va='center', fontsize=11)
+
+    fig, axs = plt.subplots(1, 2, figsize=(11, 4.9))
+    for ax in axs:
+        ax.set_xlim(-16, 22)
+        ax.set_ylim(-5, 18)
+        ax.set_aspect('equal')               # mesma escala e mesmo tamanho nos dois painéis
+        ax.grid(False)
+        ax.set_xticks([]); ax.set_yticks([])
+        ax.set_xlabel('$x$'); ax.set_ylabel('$y$')
+
+    # (a) vértice interno ao vão: s < 0 à esquerda, s > 0 à direita
+    ax = axs[0]
+    xa, xb = -12.0, 17.0
+    xs = np.linspace(xa, xb, 300)
+    ax.plot(xs, y(xs), color=E.ANALITICO, lw=2.6, label='Cabo (catenária)')
+    E.ancoragens(ax, [(xa, y(xa)), (xb, y(xb))], ['A', 'B'])
+    E.vertice(ax, (0, 0), label='Vértice $(x_0, y_0)$: $s = 0$')
+    ax.text(0, -1.6, '$(x_0, y_0)$\n$s = 0$', ha='center', va='top', fontsize=10.5)
+    arco_seta(ax, 0.6, 9.5, 1.3, E.TINTA2, '$s > 0$', (7.5, 7.2), 'center')
+    arco_seta(ax, -0.6, -8.5, 1.3, E.TINTA2, '$s < 0$', (-7.2, 6.4), 'center')
+    ax.set_title('Vértice interno ao vão\n(pertence ao cabo)', fontsize=11)
+
+    # (b) vértice externo ao vão: o cabo só tem s > 0; o vértice é um ponto virtual
+    ax = axs[1]
+    xa, xb = 4.0, 17.0
+    xv = np.linspace(-7, xa, 120)
+    ax.plot(xv, y(xv), '--', color=E.ANALITICO, lw=1.4, alpha=0.55, label='Prolongamento da catenária (fora do cabo)')
+    xs = np.linspace(xa, xb, 300)
+    ax.plot(xs, y(xs), color=E.ANALITICO, lw=2.6)
+    E.ancoragens(ax, [(xa, y(xa)), (xb, y(xb))], [None, 'B'])
+    ax.text(xa + 0.6, y(xa) - 0.6, 'A', fontweight='bold', ha='left', va='top')   # abaixo da seta de s
+    E.vertice(ax, (0, 0), virtual=True, label=None)
+    ax.text(0, -1.6, '$(x_0, y_0)$ virtual\n$s = 0$', ha='center', va='top', fontsize=10.5)
+    arco_seta(ax, 0.6, 12.5, 1.3, E.TINTA2, '$s > 0$ em todo o cabo', (2.5, 9.5), 'center')
+    ax.set_title('Vértice externo ao vão\n(ponto virtual, fora do cabo)', fontsize=11)
+
+    # legenda única, abaixo dos painéis (não cobre nada)
+    hl =[ax.get_legend_handles_labels() for ax in axs]
+    handles, labels = [], []
+    for h_, l_ in zip(hl[0][0] + hl[1][0], hl[0][1] + hl[1][1]):
+        if l_ not in labels:
+            handles.append(h_); labels.append(l_)
+    fig.legend(handles, labels, loc='lower center', ncol=2, frameon=False, bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.1, 1, 1))
+    salvar(fig, 'Esquema_OrigemS')
+
+
 # ---------------------------------------------------------------- Capítulo 4: cabo híbrido
 def hibrido(nome, A, B, l1, l2, q1, q2, legenda_extra=True):
     an = Analitico(A, B, [(l1, q1), (l2, q2)], [])
@@ -227,6 +290,7 @@ if __name__ == '__main__':
     cabo_tracao('Grafico_Esforcos', 35)
     cabo_tracao('Grafico_Esforcos_02', 32)
     catenaria_vs_parabola()
+    esquema_origem_s()
     esquema_hibrido()
     hibrido('Gráfico4', (0, 10), (40, 20), 30, 20, 10, 5)
     hibrido_tracao()
