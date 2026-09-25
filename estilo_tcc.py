@@ -116,6 +116,8 @@ def ancoragens(ax, pts, rotulos=None, label='Ancoragens'):
     pts = np.atleast_2d(pts)
     ax.plot(pts[:, 0], pts[:, 1], '^', ms=9, color=TINTA, zorder=6, label=label, clip_on=False)
     for p, r in zip(pts, rotulos or []):
+        if r is None:        # rótulo posicionado à mão pelo chamador
+            continue
         ax.annotate(r, p, xytext=(0, 8), textcoords='offset points', ha='center', va='bottom',
                     fontweight='bold', color=TINTA)
 
