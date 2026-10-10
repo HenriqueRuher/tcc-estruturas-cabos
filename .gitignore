@@ -16,3 +16,5 @@ __pycache__/
 *.aux
 *.toc
 *.out
+# documentação mantida só localmente
+*.md
