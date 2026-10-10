@@ -18,3 +18,4 @@ __pycache__/
 *.out
 # documentação mantida só localmente
 *.md
+!.github/README.md
