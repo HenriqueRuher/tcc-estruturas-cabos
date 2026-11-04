@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experimento — Qualisys</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261104">
 </head>
 <body>
 
@@ -16,7 +16,7 @@
   <div class="hdr-btns">
     <label class="ghost-file" title="Importar um arquivo do Qualisys (.tsv) ou uma tabela de coordenadas (.csv, .txt)">
       <input type="file" id="arquivo" accept=".tsv,.csv,.txt" hidden>
-      <svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar</span>
+      <svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar</span>
     </label>
     <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
   </div>
@@ -102,7 +102,7 @@
         <button type="button" id="pgAnt" class="ico" aria-label="Página anterior" title="Página anterior">◀</button>
         <span id="pgInfo"></span>
         <button type="button" id="pgProx" class="ico" aria-label="Próxima página" title="Próxima página">▶</button>
-        <button type="button" id="pgAtual" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/></svg>Ir ao quadro atual</button>
+        <button type="button" id="pgAtual" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/></svg>Ir ao quadro atual</button>
         <label class="seguir"><input type="checkbox" id="chSeguir" checked> acompanhar a animação</label>
       </div>
       <div class="tablewrap dados"><table class="tbl clicavel dados" id="tblDados"></table></div>
@@ -131,9 +131,9 @@
       <div class="row importar">
         <label class="ghost-file" title="Arquivo .tsv exportado pelo QTM ou tabela de coordenadas .csv/.txt">
           <input type="file" id="arquivo2" accept=".tsv,.csv,.txt" hidden>
-          <svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar arquivo</span>
+          <svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar arquivo</span>
         </label>
-        <button type="button" id="btnColar" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3.8A.8.8 0 0 1 9.8 3h4.4a.8.8 0 0 1 .8.8V5M8.5 11h7M8.5 15h5"/></svg>Colar tabela</button>
+        <button type="button" id="btnColar" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3.8A.8.8 0 0 1 9.8 3h4.4a.8.8 0 0 1 .8.8V5M8.5 11h7M8.5 15h5"/></svg>Colar tabela</button>
       </div>
       <p class="note">Informações do cabeçalho do arquivo exportado pelo Qualisys Track Manager (QTM). As coordenadas estão em milímetros, no sistema de referência definido na calibração das câmeras (o L-frame); no Qualisys o eixo Z é o vertical.</p>
       <p class="note"><b>Importar:</b> aceita a exportação TSV completa do QTM e também tabelas de coordenadas (.csv, .tsv, .txt ou texto colado do QTM ou do Excel), com uma linha por marcador (nome, X, Y, Z) ou uma linha por quadro (X, Y, Z de cada marcador em sequência, com ou sem colunas Frame/Time e linha de títulos). Separador: tabulação, ponto e vírgula, vírgula ou espaço; vírgula decimal também funciona.</p>
@@ -178,7 +178,7 @@
         <select id="ligA" aria-label="Primeiro marcador"></select>
         <span>—</span>
         <select id="ligB" aria-label="Segundo marcador"></select>
-        <button type="button" id="ligAdd" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="2.5"/><circle cx="18" cy="7" r="2.5"/><path d="M8 15.5 16 8.5"/></svg>Ligar</button>
+        <button type="button" id="ligAdd" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="17" r="2.5"/><circle cx="18" cy="7" r="2.5"/><path d="M8 15.5 16 8.5"/></svg>Ligar</button>
       </div>
       <ul class="lig-lista" id="ligLista"></ul>
       <p class="note">Segmentos retos entre pares de marcadores, para desenhar a montagem (por exemplo, os trechos do cabo entre alvos vizinhos). Ficam salvos neste navegador para este arquivo.</p>
@@ -189,7 +189,7 @@
     <section class="card">
       <h2>Posição de equilíbrio <small>para comparar com os modelos</small></h2>
       <div class="tablewrap"><table class="tbl" id="tblEq"></table></div>
-      <div class="row"><button type="button" id="btnCsv" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>Exportar CSV</button></div>
+      <div class="row"><button type="button" id="btnCsv" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>Exportar CSV</button></div>
       <p class="note">Posição média de cada marcador ± desvio padrão ao longo do ensaio, em mm. É o resultado que será comparado com a forma da catenária (modelo analítico) e com o resultado do Ansys, depois de associar cada marcador a um ponto do cabo.</p>
     </section>
   </aside>
@@ -208,16 +208,16 @@ B	-139,5	256,6	521,1</pre>
   <p class="note warn" id="colarErro" hidden></p>
   <div class="cr-rodape">
     <button type="button" id="colarCancelar">Cancelar</button>
-    <button type="button" class="primary com-ico" id="colarOk"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg>Importar</button>
+    <button type="button" class="primary com-ico" id="colarOk"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg>Importar</button>
   </div>
 </dialog>
 
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
-<script src="experimento_dados.js" onerror="window.QTM_ARQUIVOS=null"></script>
-<script src="experimento.js"></script>
-<script src="notas.js"></script>
-<script src="codigos.js" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js"></script>
+<script src="experimento_dados.js?v=20261104" onerror="window.QTM_ARQUIVOS=null"></script>
+<script src="experimento.js?v=20261104"></script>
+<script src="notas.js?v=20261104"></script>
+<script src="codigos.js?v=20261104" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261104"></script>
 </body>
 </html>
