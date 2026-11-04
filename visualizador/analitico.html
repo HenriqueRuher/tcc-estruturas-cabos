@@ -94,6 +94,7 @@
         </div>
         <p class="res" id="notaParab"></p>
       </section>
+      <div class="ver-codigo" data-codigos="solver,cod1,cod2,cod3,cod4" data-rotulo="Ver os códigos do modelo 2D"></div>
 
       <section class="card">
         <h2>Resultados</h2>
@@ -130,6 +131,7 @@
           <label><span>q<sub>2</sub> (N/m)</span><input type="number" step="any" id="q2"></label>
         </div>
       </section>
+      <div class="ver-codigo" data-codigos="cod5" data-rotulo="Ver o código do sistema 3D"></div>
       <section class="card">
         <h2>Resultados</h2>
         <p class="note warn" id="erro3d" hidden></p>
@@ -142,5 +144,7 @@
 
 <script src="analitico_solver.js"></script>
 <script src="analitico.js"></script>
+<script src="codigos.js" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js"></script>
 </body>
 </html>

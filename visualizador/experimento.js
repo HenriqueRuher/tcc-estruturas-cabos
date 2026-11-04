@@ -31,12 +31,21 @@ const EIXOS = ['X', 'Y', 'Z'];
 // cores dos eixos na tríade da origem (convenção usual: X vermelho, Y verde, Z azul)
 const COR_EIXO = ['#d7191c', '#1a9641', '#2a78d6'];
 
-// ---------------------------------------------------------------- leitor do TSV do QTM
-// Formato: linhas de cabeçalho "CHAVE<TAB>valor(es)" (NO_OF_FRAMES, FREQUENCY,
-// MARKER_NAMES...), depois, opcionalmente, uma linha de títulos das colunas
-// (quando a exportação inclui Frame/Time) e, por fim, uma linha por quadro com
-// X Y Z de cada marcador em sequência. Marcador não visto no quadro: campos vazios
-// ou 0,000 nos três eixos -> NaN.
+// ---------------------------------------------------------------- leitores
+// Aceita dois tipos de entrada:
+//  1) a exportação TSV completa do QTM: linhas de cabeçalho "CHAVE<TAB>valor(es)"
+//     (NO_OF_FRAMES, FREQUENCY, MARKER_NAMES...), opcionalmente uma linha de títulos
+//     (Frame/Time) e uma linha por quadro com X Y Z de cada marcador em sequência;
+//  2) uma tabela de coordenadas qualquer (arquivo .csv/.tsv/.txt ou texto colado
+//     do QTM/Excel), separada por tabulação, ponto e vírgula, vírgula ou espaços:
+//     - "uma linha por marcador": nome; X; Y; Z (coordenadas estáticas);
+//     - "uma linha por quadro": [Frame] [Time] X1 Y1 Z1 X2 Y2 Z2... com ou sem
+//       linha de títulos ("New 0000 X", "New 0000 Y"...).
+// Marcador não visto no quadro: campos vazios ou 0 nos três eixos -> NaN.
+function lerTabela(texto, arquivo) {
+  if (/^(NO_OF_FRAMES|MARKER_NAMES)\t/m.test(texto)) return lerQTM(texto, arquivo);
+  return lerGenerica(texto, arquivo);
+}
 function lerQTM(texto, arquivo) {
   const linhas = texto.split(/\r?\n/);
   const cab = {};
@@ -65,26 +74,109 @@ function lerQTM(texto, arquivo) {
     if (!l.trim()) continue;
     const c = l.split('\t');
     if (desloc === null) desloc = Math.max(0, c.length - 3 * nM);
-    // colunas extras no fim (ex.: tabulação sobrando) -> considera o início
     if (c.length - desloc < 3 * nM) continue;
     const base = desloc > 0 && c.length > 3 * nM + desloc ? 0 : desloc;
-    const linha = new Float32Array(3 * nM);
-    for (let m = 0; m < nM; m++) {
-      const xs = c[base + 3 * m], ys = c[base + 3 * m + 1], zs = c[base + 3 * m + 2];
-      let x = parseFloat(xs), y = parseFloat(ys), z = parseFloat(zs);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z) || (x === 0 && y === 0 && z === 0)) x = y = z = NaN;
-      linha[3 * m] = x; linha[3 * m + 1] = y; linha[3 * m + 2] = z;
-    }
-    P.push(linha);
+    P.push(linhaPos(c, base, nM, parseFloat));
     if (colTempo >= 0) T.push(parseFloat(c[colTempo]));
   }
-  const nF = P.length;
-  if (!nF) throw new Error('o arquivo não tem linhas de dados.');
+  return montarDados({ arquivo, nomes, P, T: colTempo >= 0 ? T : null, freq,
+    cab, cameras: parseInt((cab.NO_OF_CAMERAS || [])[0], 10) || null,
+    data: (cab.TIME_STAMP || [])[0] || '', tipo: (cab.DATA_INCLUDED || [])[0] || '' });
+}
+// X Y Z de nM marcadores a partir da coluna base
+function linhaPos(c, base, nM, num) {
+  const linha = new Float32Array(3 * nM);
+  for (let m = 0; m < nM; m++) {
+    let x = num(c[base + 3 * m]), y = num(c[base + 3 * m + 1]), z = num(c[base + 3 * m + 2]);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z) || (x === 0 && y === 0 && z === 0)) x = y = z = NaN;
+    linha[3 * m] = x; linha[3 * m + 1] = y; linha[3 * m + 2] = z;
+  }
+  return linha;
+}
+function lerGenerica(texto, arquivo) {
+  const linhas = texto.split(/\r?\n/).filter((l) => l.trim());
+  if (!linhas.length) throw new Error('a tabela está vazia.');
+  const amostra = linhas.slice(0, 20).join('\n');
+  const sep = amostra.includes('\t') ? '\t' : amostra.includes(';') ? ';' : amostra.includes(',') ? ',' : /\s+/;
+  // vírgula decimal (Excel em português): separador ; ou tab e números como 12,5
+  const decVirg = sep !== ',' && /\d,\d/.test(amostra) && !/\d\.\d/.test(amostra);
+  const num = (s) => {
+    s = (s ?? '').trim();
+    if (!s) return NaN;
+    return Number(decVirg ? s.replace(',', '.') : s);
+  };
+  const dividir = (l) => (sep instanceof RegExp ? l.trim().split(sep) : l.split(sep)).map((s) => s.trim().replace(/^"(.*)"$/, '$1'));
+  let cel = linhas.map(dividir);
+  const ehNum = (s) => Number.isFinite(num(s));
+  const numericos = (c) => c.filter(ehNum).length;
+  // linha de títulos: a primeira linha com menos números que a seguinte
+  let tit = null;
+  if (cel.length > 1 && numericos(cel[0]) < numericos(cel[1])) { tit = cel[0]; cel = cel.slice(1); }
+  else if (cel.length === 1 && !numericos(cel[0])) throw new Error('a tabela só tem a linha de títulos.');
+  // uma linha por marcador: a primeira célula é um nome (não numérico) e há 3 números
+  const porMarcador = cel.every((c) => c[0] !== '' && !ehNum(c[0]) && numericos(c) >= 3);
+  if (porMarcador) {
+    let ix = [-1, -1, -1];
+    if (tit) ix = ['x', 'y', 'z'].map((e) => tit.findIndex((s) => new RegExp(`^${e}\\b|[\\s_]${e}$|^${e}\\s*[\\[(]`, 'i').test(s.trim())));
+    if (ix.some((v) => v < 0)) { // sem títulos reconhecíveis: os três primeiros números da linha
+      const c0 = cel[0];
+      ix = [];
+      for (let k = 1; k < c0.length && ix.length < 3; k++) if (ehNum(c0[k])) ix.push(k);
+    }
+    const nomes = cel.map((c) => c[0]);
+    const linha = new Float32Array(3 * nomes.length);
+    cel.forEach((c, m) => {
+      let p = ix.map((k) => num(c[k]));
+      if (p.some((v) => !Number.isFinite(v)) || p.every((v) => v === 0)) p = [NaN, NaN, NaN];
+      linha.set(p, 3 * m);
+    });
+    return montarDados({ arquivo, nomes, P: [linha], T: null, freq: 0, tipo: 'tabela estática' });
+  }
+  // uma linha por quadro
+  const nCol = Math.max(...cel.map((c) => c.length));
+  let colT = -1, colF = -1;
+  if (tit) {
+    colT = tit.findIndex((s) => /^(time|tempo|t)\b/i.test(s));
+    colF = tit.findIndex((s) => /^(frame|quadro|#)/i.test(s));
+  }
+  let cols = [...Array(nCol).keys()].filter((k) => k !== colT && k !== colF);
+  // descarta colunas totalmente vazias no fim (tabulação sobrando)
+  while (cols.length && cel.every((c) => !(c[cols.at(-1)] ?? '').trim())) cols.pop();
+  // sem títulos: se sobram 1 ou 2 colunas além dos trios, elas são Frame/Time
+  if (!tit && cols.length % 3) {
+    const sobra = cols.length % 3;
+    colT = cols[sobra - 1];
+    cols = cols.slice(sobra);
+  }
+  if (!cols.length || cols.length % 3) throw new Error(`não consegui separar as colunas em trios X, Y, Z (${cols.length} colunas de coordenadas).`);
+  const nM = cols.length / 3;
+  const nomes = [...Array(nM).keys()].map((m) => {
+    const h = tit ? (tit[cols[3 * m]] || '') : '';
+    return h.replace(/[\s_:.-]*x\s*(\[[^\]]*\]|\([^)]*\))?\s*$/i, '').trim() || `Marcador ${m + 1}`;
+  });
+  const P = cel.map((c) => linhaPos(cols.map((k) => c[k]), 0, nM, num));
+  const T = colT >= 0 ? cel.map((c) => num(c[colT])) : null;
+  let freq = 0;
+  if (T && T.length > 1) {
+    const dts = [];
+    for (let f = 1; f < Math.min(T.length, 200); f++) if (T[f] > T[f - 1]) dts.push(T[f] - T[f - 1]);
+    dts.sort((a, b) => a - b);
+    if (dts.length) {
+      freq = 1 / dts[dts.length >> 1];
+      freq = Math.abs(freq - Math.round(freq)) < 0.005 * freq ? Math.round(freq) : Math.round(freq * 1000) / 1000; // tempo arredondado no arquivo
+    }
+  }
+  return montarDados({ arquivo, nomes, P, T, freq, tipo: P.length > 1 ? 'tabela por quadro' : 'tabela estática' });
+}
+// junta as linhas lidas e calcula a estatística de cada marcador
+function montarDados({ arquivo, nomes, P, T, freq, cab = {}, cameras = null, data = '', tipo = '' }) {
+  const nM = nomes.length, nF = P.length;
+  if (!nM) throw new Error('nenhum marcador encontrado.');
+  if (!nF) throw new Error('a tabela não tem linhas de dados.');
   const pos = new Float32Array(nF * nM * 3);
   P.forEach((l, f) => pos.set(l, f * nM * 3));
   const t = new Float64Array(nF);
-  for (let f = 0; f < nF; f++) t[f] = colTempo >= 0 && Number.isFinite(T[f]) ? T[f] : (freq ? f / freq : f);
-  // estatística de cada marcador (ignorando os quadros sem leitura)
+  for (let f = 0; f < nF; f++) t[f] = T && Number.isFinite(T[f]) ? T[f] : (freq ? f / freq : f);
   const est = nomes.map((_, m) => {
     const s = [0, 0, 0], s2 = [0, 0, 0], mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
     let n = 0;
@@ -99,10 +191,8 @@ function lerQTM(texto, arquivo) {
     const pp = mx.map((v, a) => (n ? v - mn[a] : NaN));
     return { media, dp, pp, mn, mx, validos: n };
   });
-  return { arquivo, cab, nomes, nM, nF, freq, t, pos, est,
-    cameras: parseInt((cab.NO_OF_CAMERAS || [])[0], 10) || null,
-    data: (cab.TIME_STAMP || [])[0] || '', tipo: (cab.DATA_INCLUDED || [])[0] || '',
-    tipos: cab.TRAJECTORY_TYPES || [] };
+  if (est.every((e) => !e.validos)) throw new Error('nenhuma coordenada válida na tabela.');
+  return { arquivo, cab, nomes, nM, nF, freq, t, pos, est, cameras, data, tipo };
 }
 
 // ---------------------------------------------------------------- estado
@@ -113,6 +203,7 @@ const S = {
   modo: 'quadro', exag: 1,
   nomes: true, rastro: false, piso: true, origem: true,
   escalaPropria: false,
+  pag: 0, seguir: true,
   apelidos: [], ligs: [],
 };
 const VIEWS = { iso: [-0.75, 0.38], front: [0, 0], side: [-Math.PI / 2, 0], top: [0, Math.PI / 2 - 0.001] };
@@ -260,6 +351,7 @@ function desenhar() {
   ctx.font = '11px "Segoe UI", system-ui, sans-serif';
   atualizarTempo();
   desenharGrafico();
+  acompanharTabela();
 }
 function desenharGrade() {
   const g = CENA.g;
@@ -391,21 +483,94 @@ gr.addEventListener('click', (e) => { if (S.d) definirQuadro(quadroDoGrafico(e),
 
 // ---------------------------------------------------------------- painéis
 function paineis() {
-  const d = S.d, dur = d.t[d.nF - 1] - d.t[0] + (d.freq ? 1 / d.freq : 0);
+  const d = S.d, estatico = d.nF === 1, dur = d.t[d.nF - 1] - d.t[0] + (d.freq ? 1 / d.freq : 0);
   const cel = (l, v) => `<div><div class="lbl">${l}</div><div class="val">${v}</div></div>`;
-  $('#cabecalho').innerHTML = cel('Duração', `${fmt(dur, 1)} <small>s</small>`)
-    + cel('Frequência', `${fmt(d.freq, 0)} <small>Hz</small>`)
+  $('#cabecalho').innerHTML = cel('Duração', estatico || !d.freq ? '—' : `${fmt(dur, 1)} <small>s</small>`)
+    + cel('Frequência', d.freq ? `${fmt(d.freq, d.freq % 1 ? 1 : 0)} <small>Hz</small>` : '—')
     + cel('Quadros', fmt(d.nF, 0))
     + cel('Marcadores', fmt(d.nM, 0))
     + cel('Câmeras', d.cameras != null ? fmt(d.cameras, 0) : '—')
     + cel('Dados', esc(d.tipo || '—'));
   const dataTxt = d.data ? d.data.replace(/^(\d{4})-(\d{2})-(\d{2}),?\s*/, '$3/$2/$1 ').replace(/\.\d+$/, '') : '';
   $('#arqNome').innerHTML = `<b>${esc(d.arquivo)}</b>${dataTxt ? ' · gravado em ' + esc(dataTxt) : ''}`;
-  $('#sub').textContent = `${d.arquivo} · ${fmt(d.nM, 0)} marcadores · ${fmt(dur, 1)} s a ${fmt(d.freq, 0)} Hz`;
+  $('#sub').textContent = `${d.arquivo} · ${fmt(d.nM, 0)} marcadores · `
+    + (estatico ? 'coordenadas estáticas' : d.freq ? `${fmt(dur, 1)} s a ${fmt(d.freq, d.freq % 1 ? 1 : 0)} Hz` : `${fmt(d.nF, 0)} quadros`);
+  // tabela com um só quadro: sem linha do tempo nem gráfico no tempo
+  $('#timeline').hidden = estatico; $('#cardGr').hidden = estatico;
+  $('#modoPos').disabled = estatico; $('#exag').disabled = estatico; $('#chRastro').disabled = estatico;
+  tabelaCab();
+  S.pag = 0; tabelaDados();
   tabelaMarcadores();
   tabelaEquilibrio();
   ligacoesUI();
   const sl = $('#slider'); sl.max = d.nF - 1; sl.value = S.f;
+}
+// ---------------------------------------------------------------- visualizador da tabela
+// Significado das variáveis do cabeçalho, conforme o manual do QTM (Motion data .tsv).
+const CAB_SIGNIF = {
+  NO_OF_FRAMES: 'Número total de quadros no arquivo exportado.',
+  NO_OF_CAMERAS: 'Número de câmeras usadas na captura.',
+  NO_OF_MARKERS: 'Número total de trajetórias (marcadores) no arquivo.',
+  FREQUENCY: 'Frequência de captura, em quadros por segundo (Hz).',
+  NO_OF_ANALOG: 'Número de canais analógicos exportados junto (placas de força, EMG...). 0 = nenhum.*',
+  ANALOG_FREQUENCY: 'Frequência de amostragem dos canais analógicos (0 = sem canais analógicos).*',
+  DESCRIPTION: 'Atualmente não é usado pelo QTM.',
+  TIME_STAMP: 'Data e hora da captura; o segundo valor é o tempo em segundos desde que o computador foi ligado. Marca o início da captura segundo o QTM e não deve ser usado para sincronizar com outros equipamentos.',
+  DATA_INCLUDED: 'Tipo de dado do arquivo: 2D ou 3D.',
+  MARKER_NAMES: 'Rótulos das trajetórias, na ordem das colunas de dados. Trajetória não identificada aparece sem nome.',
+  TRAJECTORY_TYPES: 'Tipo de cada trajetória, na mesma ordem: Measured (medida), Mixed, Virtual, Gap-filled (lacunas preenchidas) ou “-” (sem rótulo).',
+};
+function tabelaCab() {
+  const d = S.d, chaves = Object.keys(d.cab);
+  if (!chaves.length) {
+    $('#tblCab').innerHTML = `<tbody><tr><td>Tabela importada sem o cabeçalho do QTM (${esc(d.tipo)}): só há as coordenadas.</td></tr></tbody>`;
+    return;
+  }
+  const resumo = (k, v) => {
+    if (k === 'MARKER_NAMES') return `${v.filter((x) => x !== '').length} nomes: ${esc(v.slice(0, 3).join(', '))}${v.length > 3 ? ', …' : ''}`;
+    if (k === 'TRAJECTORY_TYPES') {
+      const n = {}; v.forEach((x) => { if (x) n[x] = (n[x] || 0) + 1; });
+      return Object.entries(n).map(([t, c]) => `${c} × ${esc(t)}`).join(', ');
+    }
+    return esc(v.join('  ·  '));
+  };
+  $('#tblCab').innerHTML = '<thead><tr><th>Variável</th><th>Valor no arquivo</th><th>Significado</th></tr></thead><tbody>'
+    + chaves.map((k) => `<tr><td><code>${esc(k)}</code></td><td>${resumo(k, d.cab[k])}</td><td>${esc(CAB_SIGNIF[k] || '—')}</td></tr>`).join('')
+    + '</tbody>';
+  if (chaves.some((k) => /ANALOG/.test(k))) $('#tblCab').insertAdjacentHTML('beforeend', '<caption>* Os canais analógicos não são descritos na página do manual; significado inferido do nome da variável.</caption>');
+}
+const PAG = 50;
+function tabelaDados() {
+  const d = S.d, nPag = Math.ceil(d.nF / PAG);
+  S.pag = clamp(S.pag, 0, nPag - 1);
+  const ini = S.pag * PAG, fim = Math.min(d.nF, ini + PAG);
+  const DESC = ['X [mm]: direção do braço longo do L-frame', 'Y [mm]: direção do braço curto do L-frame', 'Z [mm]: perpendicular ao L-frame (para cima)'];
+  let html = '<thead><tr><th rowspan="2">Quadro</th><th rowspan="2">' + (d.freq ? 't [s]' : 't') + '</th>'
+    + d.nomes.map((_, m) => `<th colspan="3" class="grp${m === S.sel ? ' on' : ''}" title="${esc(d.nomes[m])}">${esc(nome(m))}</th>`).join('')
+    + '</tr><tr>' + d.nomes.map(() => EIXOS.map((e, a) => `<th class="ax a${a}" title="${DESC[a]}">${e}</th>`).join('')).join('') + '</tr></thead><tbody>';
+  for (let f = ini; f < fim; f++) {
+    html += `<tr data-f="${f}"${f === S.f ? ' class="on"' : ''}><td>${fmt(f + 1, 0)}</td><td>${fmt(d.t[f], d.freq ? 4 : 0)}</td>`;
+    for (let m = 0; m < d.nM; m++) {
+      const k = (f * d.nM + m) * 3;
+      if (Number.isNaN(d.pos[k])) html += '<td class="dim">—</td><td class="dim">—</td><td class="dim">—</td>';
+      else html += `<td class="g0">${fmt(d.pos[k], 3)}</td><td>${fmt(d.pos[k + 1], 3)}</td><td>${fmt(d.pos[k + 2], 3)}</td>`;
+    }
+    html += '</tr>';
+  }
+  $('#tblDados').innerHTML = html + '</tbody>';
+  $('#pgInfo').textContent = `quadros ${fmt(ini + 1, 0)}–${fmt(fim, 0)} de ${fmt(d.nF, 0)}`;
+  $('#pgAnt').disabled = S.pag === 0; $('#pgProx').disabled = S.pag >= nPag - 1;
+  const um = d.nF <= PAG;
+  ['#pgAnt', '#pgProx', '#pgAtual'].forEach((id) => { $(id).hidden = um; });
+  $('#chSeguir').parentElement.hidden = um;
+}
+function acompanharTabela() {
+  if (!S.d) return;
+  const pag = Math.floor(S.f / PAG);
+  if (S.seguir && pag !== S.pag) { S.pag = pag; tabelaDados(); return; }
+  const tb = $('#tblDados tbody'); if (!tb) return;
+  const ant = tb.querySelector('tr.on'); if (ant && +ant.dataset.f !== S.f) ant.classList.remove('on');
+  const at = tb.querySelector(`tr[data-f="${S.f}"]`); if (at) at.classList.add('on');
 }
 function tabelaMarcadores() {
   const d = S.d;
@@ -437,7 +602,7 @@ function ligacoesUI() {
 }
 function atualizarTempo() {
   const d = S.d;
-  $('#tlTempo').textContent = `t = ${fmt(d.t[S.f], 3)} s`;
+  $('#tlTempo').textContent = d.freq ? `t = ${fmt(d.t[S.f], 3)} s` : `quadro ${fmt(S.f + 1, 0)}`;
   $('#tlQuadro').textContent = `quadro ${fmt(S.f + 1, 0)} de ${fmt(d.nF, 0)}`;
   $('#grTitulo').textContent = `Deslocamento × tempo · ${nome(S.sel)}`;
   const tag = $('#exagTag');
@@ -446,6 +611,7 @@ function atualizarTempo() {
 }
 function selecionar(m) {
   S.sel = m;
+  document.querySelectorAll('#tblDados th.grp').forEach((th, i) => th.classList.toggle('on', i === m));
   document.querySelectorAll('#tblMarc tbody tr').forEach((tr) => tr.classList.toggle('on', +tr.dataset.m === m));
   pedirDesenho();
 }
@@ -489,7 +655,7 @@ function abrir(dados) {
   redimensionar();
 }
 function abrirTexto(texto, arquivo) {
-  try { abrir(lerQTM(texto, arquivo)); }
+  try { abrir(lerTabela(texto, arquivo)); return true; }
   catch (err) { alert(`Não foi possível ler ${arquivo}: ${err.message}`); }
 }
 function abrirArquivo(file) {
@@ -500,7 +666,16 @@ function abrirArquivo(file) {
 }
 
 // ---------------------------------------------------------------- eventos
-$('#arquivo').addEventListener('change', (e) => { abrirArquivo(e.target.files[0]); e.target.value = ''; });
+['#arquivo', '#arquivo2'].forEach((id) => $(id).addEventListener('change', (e) => { abrirArquivo(e.target.files[0]); e.target.value = ''; }));
+// colar tabela (texto copiado do QTM ou do Excel)
+const dlgColar = $('#dlgColar');
+$('#btnColar').addEventListener('click', () => { $('#colarErro').hidden = true; dlgColar.showModal(); $('#colarTexto').focus(); });
+$('#colarCancelar').addEventListener('click', () => dlgColar.close());
+$('#colarOk').addEventListener('click', () => {
+  const texto = $('#colarTexto').value, nomeEns = $('#colarNome').value.trim() || 'tabela colada';
+  try { abrir(lerTabela(texto, nomeEns)); dlgColar.close(); }
+  catch (err) { $('#colarErro').textContent = `Não foi possível ler a tabela: ${err.message}`; $('#colarErro').hidden = false; }
+});
 const vp = $('#viewport');
 ['dragenter', 'dragover'].forEach((t) => vp.addEventListener(t, (e) => { e.preventDefault(); $('#soltar').hidden = false; }));
 ['dragleave', 'drop'].forEach((t) => vp.addEventListener(t, (e) => { e.preventDefault(); if (t === 'drop' || !vp.contains(e.relatedTarget)) $('#soltar').hidden = true; }));
@@ -592,7 +767,12 @@ $('#tblMarc').addEventListener('input', (e) => {
   S.apelidos[+m] = e.target.value.trim() || S.d.nomes[+m];
   salvarPrefs(); pedirDesenho();
 });
-$('#tblMarc').addEventListener('change', (e) => { if (e.target.dataset.nome != null) { tabelaEquilibrio(); ligacoesUI(); } });
+$('#tblMarc').addEventListener('change', (e) => { if (e.target.dataset.nome != null) { tabelaEquilibrio(); ligacoesUI(); tabelaDados(); } });
+$('#pgAnt').addEventListener('click', () => { S.pag--; S.seguir = false; $('#chSeguir').checked = false; tabelaDados(); });
+$('#pgProx').addEventListener('click', () => { S.pag++; S.seguir = false; $('#chSeguir').checked = false; tabelaDados(); });
+$('#pgAtual').addEventListener('click', () => { S.pag = Math.floor(S.f / PAG); tabelaDados(); });
+$('#chSeguir').addEventListener('change', (e) => { S.seguir = e.target.checked; if (S.seguir) acompanharTabela(); });
+$('#tblDados').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-f]'); if (tr) definirQuadro(+tr.dataset.f, true); });
 $('#ligAdd').addEventListener('click', () => {
   const a = +$('#ligA').value, b = +$('#ligB').value;
   if (a === b || S.ligs.some(([p, q]) => (p === a && q === b) || (p === b && q === a))) return;

@@ -14,9 +14,9 @@
     <p class="sub" id="sub">Marcadores medidos pelo sistema de captura de movimento (exportação TSV do Qualisys Track Manager)</p>
   </div>
   <div class="hdr-btns">
-    <label class="ghost-file" title="Abrir outro arquivo .tsv exportado pelo QTM">
-      <input type="file" id="arquivo" accept=".tsv,.txt" hidden>
-      <span>Abrir .tsv</span>
+    <label class="ghost-file" title="Importar um arquivo do Qualisys (.tsv) ou uma tabela de coordenadas (.csv, .txt)">
+      <input type="file" id="arquivo" accept=".tsv,.csv,.txt" hidden>
+      <svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar</span>
     </label>
     <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
   </div>
@@ -34,12 +34,12 @@
         <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
       </div>
       <div class="exag-tag" id="exagTag" hidden></div>
-      <div class="hint">arraste = girar · roda = zoom · duplo clique = reiniciar vista · solte um .tsv aqui para abrir</div>
+      <div class="hint">arraste = girar · roda = zoom · duplo clique = reiniciar vista · solte um arquivo aqui para importar</div>
       <div class="tip" id="tip" hidden></div>
-      <div class="soltar" id="soltar" hidden>Solte o arquivo .tsv para abrir</div>
+      <div class="soltar" id="soltar" hidden>Solte o arquivo para importar</div>
     </div>
 
-    <div class="timeline">
+    <div class="timeline" id="timeline">
       <button id="btnPrev" type="button" class="ico" title="Quadro anterior (←; Shift = 1 s)" aria-label="Quadro anterior">⏮</button>
       <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir">▶</button>
       <button id="btnNext" type="button" class="ico" title="Próximo quadro (→; Shift = 1 s)" aria-label="Próximo quadro">⏭</button>
@@ -58,17 +58,64 @@
       </label>
     </div>
 
-    <div class="card">
+    <section class="card" id="cardGr">
       <h2 id="grTitulo">Deslocamento × tempo</h2>
       <div class="gr-wrap">
         <canvas id="gr" class="grafico-exp" role="img" aria-label="Deslocamento do marcador selecionado em X, Y e Z ao longo do tempo"></canvas>
         <div class="tip" id="grTip" hidden></div>
       </div>
       <div class="checks">
-        <label><input type="checkbox" id="chEscala"> escala própria por eixo</label>
+        <label class="dica" data-dica="Desligado: os três eixos usam a mesma escala, para comparar em que direção o cabo se move. Ligado: cada eixo usa a sua escala, para enxergar os movimentos pequenos em X e Z."><input type="checkbox" id="chEscala"> escala própria por eixo</label>
       </div>
-      <p class="note">Deslocamento do marcador selecionado em relação à posição média, em cada eixo. Serve para conferir se o ensaio estava estável (a posição média é o que se compara com os modelos). Por padrão os três eixos usam a mesma escala, para mostrar em que direção o movimento acontece. Clique no gráfico para ir ao instante.</p>
-    </div>
+      <p class="note">Deslocamento do marcador selecionado em relação à posição média, em cada eixo. Serve para conferir se o ensaio estava estável (a posição média é o que se compara com os modelos). Clique no gráfico para ir ao instante.</p>
+    </section>
+
+    <section class="card" id="cardTabela">
+      <h2>Tabela de dados <small>como o Qualisys exporta</small></h2>
+      <div class="guia">
+        <svg class="guia-lframe" viewBox="0 0 220 150" role="img" aria-label="L-frame: o canto é a origem, o braço longo define X, o braço curto define Y e Z aponta para cima">
+          <path d="M40 112 L190 112" class="braco"/><path d="M40 112 L92 80" class="braco"/>
+          <circle cx="40" cy="112" r="5" class="mk"/><circle cx="105" cy="112" r="5" class="mk"/><circle cx="190" cy="112" r="5" class="mk"/><circle cx="92" cy="80" r="5" class="mk"/>
+          <path d="M40 112 V22" class="ez"/><path d="M40 22 l-5 9 h10 z" class="ez-p"/>
+          <path d="M190 112 h16" class="ex"/><path d="M212 112 l-9 -5 v10 z" class="ex-p"/>
+          <path d="M92 80 l14 -9" class="ey"/><path d="M112 67 l-10 0.5 l5 8 z" class="ey-p"/>
+          <text x="214" y="132" class="tx">X</text><text x="114" y="62" class="ty">Y</text><text x="48" y="24" class="tz">Z</text>
+          <text x="10" y="138" class="t0">origem (0, 0, 0)</text>
+        </svg>
+        <dl class="guia-eixos">
+          <div><dt>Origem (0, 0, 0)</dt><dd>Canto do <b>L-frame</b>, a peça em L com quatro marcadores colocada no volume durante a calibração das câmeras <a href="#fonte3">[3]</a>.</dd></div>
+          <div><dt class="cx">X</dt><dd>Direção do <b>braço longo</b> do L-frame (padrão do QTM) <a href="#fonte2">[2]</a>.</dd></div>
+          <div><dt class="cy">Y</dt><dd>Direção do <b>braço curto</b> do L-frame (padrão do QTM) <a href="#fonte2">[2]</a>.</dd></div>
+          <div><dt class="cz">Z</dt><dd>Perpendicular ao plano do L-frame, completando o sistema. Qual eixo aponta para cima é uma opção do projeto no QTM (<i>Axis pointing upwards</i>) <a href="#fonte4">[4]</a>. Neste ensaio todos os Z são positivos e crescem com a altura dos alvos, o que indica Z para cima (conferir com o laboratório a configuração usada).</dd></div>
+          <div><dt>Unidade</dt><dd>Milímetros. Cada linha é um quadro e cada marcador ocupa três colunas seguidas: X, Y e Z <a href="#fonte1">[1]</a>.</dd></div>
+          <div><dt>Tempo</dt><dd>t = quadro ÷ FREQUENCY. O arquivo só traz colunas Frame e Time quando a opção <i>Export time data for every frame</i> está ligada na exportação <a href="#fonte1">[1]</a>; neste arquivo ela estava desligada.</dd></div>
+          <div><dt>Sem leitura</dt><dd>A documentação não diz como aparece um quadro em que o marcador não foi visto. O visualizador trata célula vazia ou 0,000 nos três eixos como “sem leitura” (—). Esta é uma hipótese nossa, não da documentação.</dd></div>
+        </dl>
+      </div>
+
+      <details class="sub-card">
+        <summary>Cabeçalho do arquivo</summary>
+        <div class="tablewrap"><table class="tbl cab" id="tblCab"></table></div>
+      </details>
+
+      <div class="dados-ctl">
+        <button type="button" id="pgAnt" class="ico" aria-label="Página anterior" title="Página anterior">◀</button>
+        <span id="pgInfo"></span>
+        <button type="button" id="pgProx" class="ico" aria-label="Próxima página" title="Próxima página">▶</button>
+        <button type="button" id="pgAtual" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/></svg>Ir ao quadro atual</button>
+        <label class="seguir"><input type="checkbox" id="chSeguir" checked> acompanhar a animação</label>
+      </div>
+      <div class="tablewrap dados"><table class="tbl clicavel dados" id="tblDados"></table></div>
+
+      <h3 class="fontes-tit">Fontes</h3>
+      <ol class="fontes">
+        <li id="fonte1">Qualisys. <a href="https://docs.qualisys.com/qtm/content/processing_measurement/motion_data_tsv.htm" target="_blank" rel="noopener noreferrer">QTM User Manual: Motion data (.tsv)</a>. Formato do arquivo: variáveis do cabeçalho, colunas X, Y, Z em mm, colunas opcionais Frame e Time.</li>
+        <li id="fonte2">Qualisys. <a href="https://docs.qualisys.com/getting-started/content/8_calibration_series/8a_how_to_calibrate/calibration_settings.htm" target="_blank" rel="noopener noreferrer">Getting started: Calibration settings</a>. “By default, the long side of the L-frame will define the X-axis while the short side will define the Y-axis.”</li>
+        <li id="fonte3">Qualisys. <a href="https://docs.qualisys.com/getting-started/content/4_what_comes_with_your_system/4_what_comes_with_your_qualisys_system/calibration_kit.htm" target="_blank" rel="noopener noreferrer">Getting started: Calibration kit</a>. O L-frame “defines the X, Y, and Z axes of the volume, and its corner sets the origin point”.</li>
+        <li id="fonte4">Qualisys. <a href="https://docs.qualisys.com/qtm/content/project_options/wand_calibration.htm" target="_blank" rel="noopener noreferrer">QTM User Manual: Wand calibration</a>. A orientação dos eixos em relação ao L-frame é configurável (<i>Axis pointing upwards</i> e <i>Long arm axis</i>).</li>
+      </ol>
+      <p class="note">Valores exatamente como estão no arquivo, só formatados (vírgula decimal, três casas). Clique numa linha para levar a vista 3D até aquele quadro. Os nomes dos marcadores seguem os nomes editados na tabela de marcadores.</p>
+    </section>
   </section>
 
   <aside class="side">
@@ -81,7 +128,15 @@
       </div>
       <div class="pgrid" id="cabecalho"></div>
       <p class="res" id="arqNome"></p>
+      <div class="row importar">
+        <label class="ghost-file" title="Arquivo .tsv exportado pelo QTM ou tabela de coordenadas .csv/.txt">
+          <input type="file" id="arquivo2" accept=".tsv,.csv,.txt" hidden>
+          <svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar arquivo</span>
+        </label>
+        <button type="button" id="btnColar" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3.8A.8.8 0 0 1 9.8 3h4.4a.8.8 0 0 1 .8.8V5M8.5 11h7M8.5 15h5"/></svg>Colar tabela</button>
+      </div>
       <p class="note">Informações do cabeçalho do arquivo exportado pelo Qualisys Track Manager (QTM). As coordenadas estão em milímetros, no sistema de referência definido na calibração das câmeras (o L-frame); no Qualisys o eixo Z é o vertical.</p>
+      <p class="note"><b>Importar:</b> aceita a exportação TSV completa do QTM e também tabelas de coordenadas (.csv, .tsv, .txt ou texto colado do QTM ou do Excel), com uma linha por marcador (nome, X, Y, Z) ou uma linha por quadro (X, Y, Z de cada marcador em sequência, com ou sem colunas Frame/Time e linha de títulos). Separador: tabulação, ponto e vírgula, vírgula ou espaço; vírgula decimal também funciona.</p>
     </section>
 
     <section class="card">
@@ -123,25 +178,46 @@
         <select id="ligA" aria-label="Primeiro marcador"></select>
         <span>—</span>
         <select id="ligB" aria-label="Segundo marcador"></select>
-        <button type="button" id="ligAdd" class="add">Ligar</button>
+        <button type="button" id="ligAdd" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="17" r="2.5"/><circle cx="18" cy="7" r="2.5"/><path d="M8 15.5 16 8.5"/></svg>Ligar</button>
       </div>
       <ul class="lig-lista" id="ligLista"></ul>
       <p class="note">Segmentos retos entre pares de marcadores, para desenhar a montagem (por exemplo, os trechos do cabo entre alvos vizinhos). Ficam salvos neste navegador para este arquivo.</p>
     </section>
 
+    <div class="ver-codigo" data-codigos="leitor" data-rotulo="Ver o código do leitor"></div>
+
     <section class="card">
       <h2>Posição de equilíbrio <small>para comparar com os modelos</small></h2>
       <div class="tablewrap"><table class="tbl" id="tblEq"></table></div>
-      <div class="row"><button type="button" id="btnCsv" class="add">Exportar CSV</button></div>
+      <div class="row"><button type="button" id="btnCsv" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>Exportar CSV</button></div>
       <p class="note">Posição média de cada marcador ± desvio padrão ao longo do ensaio, em mm. É o resultado que será comparado com a forma da catenária (modelo analítico) e com o resultado do Ansys, depois de associar cada marcador a um ponto do cabo.</p>
     </section>
   </aside>
 </main>
+
+<dialog id="dlgColar" class="colar" aria-labelledby="colarTitulo">
+  <h2 id="colarTitulo">Colar tabela de coordenadas</h2>
+  <p class="note">Cole aqui as coordenadas copiadas do QTM ou do Excel, em mm. Exemplos:</p>
+  <pre class="ex">Nome	X	Y	Z
+A	-140,2	256,6	215,7
+B	-139,5	256,6	521,1</pre>
+  <pre class="ex">Frame	Time	New 0000 X	New 0000 Y	New 0000 Z	...
+1	0.00000	-140.244	256.447	215.723	...</pre>
+  <label class="colar-nome">Nome do ensaio <input type="text" id="colarNome" value="tabela colada"></label>
+  <textarea id="colarTexto" spellcheck="false" placeholder="cole a tabela aqui"></textarea>
+  <p class="note warn" id="colarErro" hidden></p>
+  <div class="cr-rodape">
+    <button type="button" id="colarCancelar">Cancelar</button>
+    <button type="button" class="primary com-ico" id="colarOk"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg>Importar</button>
+  </div>
+</dialog>
 
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
 <script src="experimento_dados.js" onerror="window.QTM_ARQUIVOS=null"></script>
 <script src="experimento.js"></script>
 <script src="notas.js"></script>
+<script src="codigos.js" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js"></script>
 </body>
 </html>
