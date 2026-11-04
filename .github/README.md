@@ -15,4 +15,6 @@ experimento em escala reduzida.
 - 🌐 **Aplicação (visualizador interativo):** https://henriqueruher.github.io/tcc-estruturas-cabos/
 
 A aplicação abre direto no navegador, sem instalação. Ela permite calcular a forma e a tração de cabos a partir
-dos dados digitados e comparar o modelo analítico com a simulação no Ansys, em 2D e 3D.
+dos dados digitados e comparar o modelo analítico com a simulação no Ansys, em 2D e 3D. A parte experimental lê os dados do
+sistema de captura de movimento Qualisys (exportação TSV do QTM): marcadores em 3D ao longo do ensaio e a
+posição de equilíbrio de cada alvo, para comparar com os modelos.

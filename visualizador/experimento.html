@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experimento — Qualisys</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Experimento <span class="tag">Qualisys</span></h1>
+    <p class="sub" id="sub">Marcadores medidos pelo sistema de captura de movimento (exportação TSV do Qualisys Track Manager)</p>
+  </div>
+  <div class="hdr-btns">
+    <label class="ghost-file" title="Abrir outro arquivo .tsv exportado pelo QTM">
+      <input type="file" id="arquivo" accept=".tsv,.txt" hidden>
+      <span>Abrir .tsv</span>
+    </label>
+    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="stage exp" aria-label="Visualização 3D">
+    <div class="viewport" id="viewport">
+      <canvas id="cv" role="img" aria-label="Vista 3D dos marcadores medidos"></canvas>
+      <div class="toolbar" role="group" aria-label="Vistas">
+        <button type="button" data-view="iso" class="on">Isométrica</button>
+        <button type="button" data-view="front">Frontal <small>XZ</small></button>
+        <button type="button" data-view="side">Lateral <small>YZ</small></button>
+        <button type="button" data-view="top">Superior <small>XY</small></button>
+        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+      </div>
+      <div class="exag-tag" id="exagTag" hidden></div>
+      <div class="hint">arraste = girar · roda = zoom · duplo clique = reiniciar vista · solte um .tsv aqui para abrir</div>
+      <div class="tip" id="tip" hidden></div>
+      <div class="soltar" id="soltar" hidden>Solte o arquivo .tsv para abrir</div>
+    </div>
+
+    <div class="timeline">
+      <button id="btnPrev" type="button" class="ico" title="Quadro anterior (←; Shift = 1 s)" aria-label="Quadro anterior">⏮</button>
+      <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir">▶</button>
+      <button id="btnNext" type="button" class="ico" title="Próximo quadro (→; Shift = 1 s)" aria-label="Próximo quadro">⏭</button>
+      <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="Quadro">
+      <div class="tl-info">
+        <b id="tlTempo"></b>
+        <span id="tlQuadro"></span>
+      </div>
+      <label class="speed">vel.
+        <select id="speed" aria-label="Velocidade da reprodução">
+          <option value="0.1">0,1×</option>
+          <option value="0.25">0,25×</option>
+          <option value="0.5">0,5×</option>
+          <option value="1" selected>1× (tempo real)</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="card">
+      <h2 id="grTitulo">Deslocamento × tempo</h2>
+      <div class="gr-wrap">
+        <canvas id="gr" class="grafico-exp" role="img" aria-label="Deslocamento do marcador selecionado em X, Y e Z ao longo do tempo"></canvas>
+        <div class="tip" id="grTip" hidden></div>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="chEscala"> escala própria por eixo</label>
+      </div>
+      <p class="note">Deslocamento do marcador selecionado em relação à posição média, em cada eixo. Serve para conferir se o ensaio estava estável (a posição média é o que se compara com os modelos). Por padrão os três eixos usam a mesma escala, para mostrar em que direção o movimento acontece. Clique no gráfico para ir ao instante.</p>
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="card">
+      <h2>Ensaio</h2>
+      <div class="row" id="ensaioRow" hidden>
+        <label>Arquivo
+          <select id="ensaioSel"></select>
+        </label>
+      </div>
+      <div class="pgrid" id="cabecalho"></div>
+      <p class="res" id="arqNome"></p>
+      <p class="note">Informações do cabeçalho do arquivo exportado pelo Qualisys Track Manager (QTM). As coordenadas estão em milímetros, no sistema de referência definido na calibração das câmeras (o L-frame); no Qualisys o eixo Z é o vertical.</p>
+    </section>
+
+    <section class="card">
+      <h2>Marcadores <small>clique para selecionar</small></h2>
+      <div class="tablewrap tall"><table class="tbl clicavel edit-nomes" id="tblMarc"></table></div>
+      <p class="note"><b>Nome:</b> o sistema numera os alvos automaticamente (New 0000, New 0001...). Edite o nome para identificar o ponto da montagem; ele fica salvo neste navegador para este arquivo. <b>X̄, Ȳ, Z̄:</b> posição média. <b>Pico a pico:</b> maior variação entre os três eixos. <b>Vistos:</b> fração dos quadros em que o marcador foi visto pelas câmeras.</p>
+    </section>
+
+    <section class="card">
+      <h2>Exibição</h2>
+      <div class="row">
+        <label>Posição dos marcadores
+          <select id="modoPos">
+            <option value="quadro">quadro atual</option>
+            <option value="media">média (equilíbrio)</option>
+          </select>
+        </label>
+        <label>Exagero dos deslocamentos
+          <select id="exag">
+            <option value="1" selected>1× (real)</option>
+            <option value="5">5×</option>
+            <option value="10">10×</option>
+            <option value="20">20×</option>
+          </select>
+        </label>
+      </div>
+      <div class="checks">
+        <label><input type="checkbox" id="chNomes" checked> nomes</label>
+        <label><input type="checkbox" id="chRastro"> rastro (1 s)</label>
+        <label><input type="checkbox" id="chPiso" checked> projeção no piso</label>
+        <label><input type="checkbox" id="chOrigem" checked> origem e grade</label>
+      </div>
+      <p class="note"><b>Exagero:</b> multiplica o afastamento de cada marcador em relação à sua posição média, para enxergar movimentos de poucos milímetros. <b>Projeção no piso:</b> linha vertical até o plano Z = 0, para ajudar a ler a profundidade. <b>Origem e grade:</b> eixos do Qualisys na origem e grade de 50/100 mm no plano Z = 0.</p>
+    </section>
+
+    <section class="card">
+      <h2>Ligações</h2>
+      <div class="lig-linha">
+        <select id="ligA" aria-label="Primeiro marcador"></select>
+        <span>—</span>
+        <select id="ligB" aria-label="Segundo marcador"></select>
+        <button type="button" id="ligAdd" class="add">Ligar</button>
+      </div>
+      <ul class="lig-lista" id="ligLista"></ul>
+      <p class="note">Segmentos retos entre pares de marcadores, para desenhar a montagem (por exemplo, os trechos do cabo entre alvos vizinhos). Ficam salvos neste navegador para este arquivo.</p>
+    </section>
+
+    <section class="card">
+      <h2>Posição de equilíbrio <small>para comparar com os modelos</small></h2>
+      <div class="tablewrap"><table class="tbl" id="tblEq"></table></div>
+      <div class="row"><button type="button" id="btnCsv" class="add">Exportar CSV</button></div>
+      <p class="note">Posição média de cada marcador ± desvio padrão ao longo do ensaio, em mm. É o resultado que será comparado com a forma da catenária (modelo analítico) e com o resultado do Ansys, depois de associar cada marcador a um ponto do cabo.</p>
+    </section>
+  </aside>
+</main>
+
+<footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
+
+<script src="experimento_dados.js" onerror="window.QTM_ARQUIVOS=null"></script>
+<script src="experimento.js"></script>
+<script src="notas.js"></script>
+</body>
+</html>
