@@ -83,10 +83,10 @@
           <text x="10" y="138" class="t0">origem (0, 0, 0)</text>
         </svg>
         <dl class="guia-eixos">
-          <div><dt>Origem (0, 0, 0)</dt><dd>Canto do <b>L-frame</b>, a peça em L com quatro marcadores colocada no volume durante a calibração das câmeras <a href="#fonte3">[3]</a>.</dd></div>
-          <div><dt class="cx">X</dt><dd>Direção do <b>braço longo</b> do L-frame (padrão do QTM) <a href="#fonte2">[2]</a>.</dd></div>
-          <div><dt class="cy">Y</dt><dd>Direção do <b>braço curto</b> do L-frame (padrão do QTM) <a href="#fonte2">[2]</a>.</dd></div>
-          <div><dt class="cz">Z</dt><dd>Perpendicular ao plano do L-frame, completando o sistema. Qual eixo aponta para cima é uma opção do projeto no QTM (<i>Axis pointing upwards</i>) <a href="#fonte4">[4]</a>. Neste ensaio todos os Z são positivos e crescem com a altura dos alvos, o que indica Z para cima (conferir com o laboratório a configuração usada).</dd></div>
+          <div><dt>Origem (0, 0, 0)</dt><dd>Canto do <b>L-frame</b>, a peça em L com quatro marcadores colocada no volume durante a calibração das câmeras.</dd></div>
+          <div><dt class="cx">X</dt><dd>Direção do <b>braço longo</b> do L-frame (padrão do QTM).</dd></div>
+          <div><dt class="cy">Y</dt><dd>Direção do <b>braço curto</b> do L-frame (padrão do QTM).</dd></div>
+          <div><dt class="cz">Z</dt><dd>Perpendicular ao plano do L-frame, completando o sistema. Qual eixo aponta para cima é uma opção do projeto no QTM (<i>Axis pointing upwards</i>). Neste ensaio todos os Z são positivos e crescem com a altura dos alvos, o que indica Z para cima (conferir com o laboratório a configuração usada).</dd></div>
           <div><dt>Unidade</dt><dd>Milímetros. Cada linha é um quadro e cada marcador ocupa três colunas seguidas: X, Y e Z <a href="#fonte1">[1]</a>.</dd></div>
           <div><dt>Tempo</dt><dd>t = quadro ÷ FREQUENCY. O arquivo só traz colunas Frame e Time quando a opção <i>Export time data for every frame</i> está ligada na exportação <a href="#fonte1">[1]</a>; neste arquivo ela estava desligada.</dd></div>
           <div><dt>Sem leitura</dt><dd>A documentação não diz como aparece um quadro em que o marcador não foi visto. O visualizador trata célula vazia ou 0,000 nos três eixos como “sem leitura” (—). Esta é uma hipótese nossa, não da documentação.</dd></div>
@@ -107,12 +107,9 @@
       </div>
       <div class="tablewrap dados"><table class="tbl clicavel dados" id="tblDados"></table></div>
 
-      <h3 class="fontes-tit">Fontes</h3>
+      <h3 class="fontes-tit">Fonte</h3>
       <ol class="fontes">
         <li id="fonte1">Qualisys. <a href="https://docs.qualisys.com/qtm/content/processing_measurement/motion_data_tsv.htm" target="_blank" rel="noopener noreferrer">QTM User Manual: Motion data (.tsv)</a>. Formato do arquivo: variáveis do cabeçalho, colunas X, Y, Z em mm, colunas opcionais Frame e Time.</li>
-        <li id="fonte2">Qualisys. <a href="https://docs.qualisys.com/getting-started/content/8_calibration_series/8a_how_to_calibrate/calibration_settings.htm" target="_blank" rel="noopener noreferrer">Getting started: Calibration settings</a>. “By default, the long side of the L-frame will define the X-axis while the short side will define the Y-axis.”</li>
-        <li id="fonte3">Qualisys. <a href="https://docs.qualisys.com/getting-started/content/4_what_comes_with_your_system/4_what_comes_with_your_qualisys_system/calibration_kit.htm" target="_blank" rel="noopener noreferrer">Getting started: Calibration kit</a>. O L-frame “defines the X, Y, and Z axes of the volume, and its corner sets the origin point”.</li>
-        <li id="fonte4">Qualisys. <a href="https://docs.qualisys.com/qtm/content/project_options/wand_calibration.htm" target="_blank" rel="noopener noreferrer">QTM User Manual: Wand calibration</a>. A orientação dos eixos em relação ao L-frame é configurável (<i>Axis pointing upwards</i> e <i>Long arm axis</i>).</li>
       </ol>
       <p class="note">Valores exatamente como estão no arquivo, só formatados (vírgula decimal, três casas). Clique numa linha para levar a vista 3D até aquele quadro. Os nomes dos marcadores seguem os nomes editados na tabela de marcadores.</p>
     </section>
