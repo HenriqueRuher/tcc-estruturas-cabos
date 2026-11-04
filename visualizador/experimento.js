@@ -883,14 +883,15 @@ $('#intRepouso').addEventListener('click', () => {
 });
 $('#btnCsv').addEventListener('click', () => {
   const d = S.d; if (!d) return;
-  const n = (v) => (Number.isFinite(v) ? v.toFixed(3) : '');
+  // vírgula decimal e ; como separador: abre direto no Excel em português
+  const n = (v) => (Number.isFinite(v) ? v.toFixed(3).replace('.', ',') : '');
   const ti = d.t[d.f0], tf = d.t[d.f1], inteiro = d.f0 === 0 && d.f1 === d.nF - 1;
   const linhas = ['marcador;nome_qtm;x_mm;y_mm;z_mm;dp_x_mm;dp_y_mm;dp_z_mm;validos;t_ini_s;t_fim_s']
     .concat(d.est.map((e, m) => [nome(m), d.nomes[m], ...e.media.map(n), ...e.dp.map(n), e.validos, n(ti), n(tf)].join(';')));
   const a = document.createElement('a');
   const sufixo = inteiro ? '' : `_t${ti.toFixed(1)}-${tf.toFixed(1)}s`.replace(/\./g, ',');
   a.download = `equilibrio_${d.arquivo.replace(/\.[^.]+$/, '')}${sufixo}.csv`;
-  a.href = URL.createObjectURL(new Blob([linhas.join('\r\n') + '\r\n'], { type: 'text/csv' }));
+  a.href = URL.createObjectURL(new Blob(['﻿' + linhas.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' }));
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
