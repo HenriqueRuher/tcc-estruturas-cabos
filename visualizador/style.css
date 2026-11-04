@@ -642,3 +642,22 @@ dialog.codigo-dlg::backdrop { background: rgba(10, 10, 12, .5); backdrop-filter:
 .bi { width: 15px; height: 15px; color: var(--ink-2); }
 button:hover .bi, .ghost-file:hover .bi { color: var(--accent); }
 .primary .bi { color: inherit; }
+
+/* chave liga/desliga (substitui a caixa de seleção) */
+.chave { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; color: var(--ink-2); font-size: 12.5px; }
+.chave input {
+  appearance: none; -webkit-appearance: none; margin: 0; flex: 0 0 auto; position: relative; cursor: pointer;
+  width: 30px; height: 17px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line);
+  transition: background .15s, border-color .15s;
+}
+.chave input::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s, background .15s;
+}
+.chave input:checked { background: var(--accent); border-color: var(--accent); }
+.chave input:checked::before { transform: translateX(13px); background: var(--accent-ink); }
+.chave:hover input { border-color: var(--muted); }
+.chave:hover input:checked { border-color: var(--accent); }
+.chave input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chave:has(input:checked) { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .chave input, .chave input::before { transition: none; } }
