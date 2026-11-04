@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experimento — Qualisys</title>
-<link rel="stylesheet" href="style.css?v=20261104">
+<link rel="stylesheet" href="style.css?v=20261104b">
 </head>
 <body>
 
@@ -67,7 +67,7 @@
       <div class="checks">
         <label class="dica chave" data-dica="Desligado: os três eixos usam a mesma escala, para comparar em que direção o cabo se move. Ligado: cada eixo usa a sua escala, para enxergar os movimentos pequenos em X e Z."><input type="checkbox" id="chEscala"> escala própria por eixo</label>
       </div>
-      <p class="note">Deslocamento do marcador selecionado em relação à posição média, em cada eixo. Serve para conferir se o ensaio estava estável (a posição média é o que se compara com os modelos). Clique no gráfico para ir ao instante.</p>
+      <p class="note">Deslocamento do marcador selecionado em relação à posição média, em cada eixo. Serve para conferir se o ensaio estava estável (a posição média é o que se compara com os modelos). Clique no gráfico para ir ao instante; arraste para escolher o intervalo da média (trecho em destaque).</p>
     </section>
 
     <section class="card" id="cardTabela">
@@ -183,9 +183,24 @@
 
     <section class="card">
       <h2>Posição de equilíbrio <small>para comparar com os modelos</small></h2>
+      <div class="intervalo" id="intervalo">
+        <div class="int-linha">
+          <span class="int-rot">Intervalo da média</span>
+          <label>de <input type="number" id="intIni" step="0.1" min="0" inputmode="decimal" aria-label="Início do intervalo, em segundos"></label>
+          <label>até <input type="number" id="intFim" step="0.1" min="0" inputmode="decimal" aria-label="Fim do intervalo, em segundos"></label>
+          <span class="int-un">s</span>
+        </div>
+        <div class="int-botoes">
+          <button type="button" id="intDeAgora" class="add com-ico" title="Começar o intervalo no instante atual da animação"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5v14M19 12H9M13 8l-4 4 4 4"/></svg>início aqui</button>
+          <button type="button" id="intAteAgora" class="add com-ico" title="Terminar o intervalo no instante atual da animação"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 5v14M5 12h10M11 8l4 4-4 4"/></svg>fim aqui</button>
+          <button type="button" id="intRepouso" class="add com-ico" title="Escolher automaticamente o trecho mais longo em que os marcadores ficam parados"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12c2-5 3-5 5 0s3 5 5 0"/><path d="M14 12h7"/></svg>trecho parado</button>
+          <button type="button" id="intTudo" class="add com-ico" title="Usar o ensaio inteiro"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M4 12l4-4M4 12l4 4M20 12l-4-4M20 12l-4 4"/></svg>ensaio inteiro</button>
+        </div>
+        <p class="res" id="intInfo"></p>
+      </div>
       <div class="tablewrap"><table class="tbl" id="tblEq"></table></div>
       <div class="row"><button type="button" id="btnCsv" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg>Exportar CSV</button></div>
-      <p class="note">Posição média de cada marcador ± desvio padrão ao longo do ensaio, em mm. É o resultado que será comparado com a forma da catenária (modelo analítico) e com o resultado do Ansys, depois de associar cada marcador a um ponto do cabo.</p>
+      <p class="note">Posição média de cada marcador ± desvio padrão no intervalo escolhido, em mm. <b>Intervalo:</b> digite o início e o fim, use os botões ou arraste sobre o gráfico de deslocamento × tempo. <b>Trecho parado:</b> procura, em janelas de 0,5 s, o trecho contínuo mais longo em que nenhum marcador varia mais que 3 vezes o ruído das câmeras (a variação da janela mais quieta do ensaio). O intervalo vale também para a tabela de marcadores, para a vista “posição média” e para o CSV. É o resultado que será comparado com a forma da catenária (modelo analítico) e com o resultado do Ansys, depois de associar cada marcador a um ponto do cabo.</p>
     </section>
     <div class="ver-codigo" data-codigos="leitor" data-rotulo="Ver o código do leitor"></div>
   </aside>
@@ -210,10 +225,10 @@ B	-139,5	256,6	521,1</pre>
 
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
-<script src="experimento_dados.js?v=20261104" onerror="window.QTM_ARQUIVOS=null"></script>
-<script src="experimento.js?v=20261104"></script>
-<script src="notas.js?v=20261104"></script>
-<script src="codigos.js?v=20261104" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js?v=20261104"></script>
+<script src="experimento_dados.js?v=20261104b" onerror="window.QTM_ARQUIVOS=null"></script>
+<script src="experimento.js?v=20261104b"></script>
+<script src="notas.js?v=20261104b"></script>
+<script src="codigos.js?v=20261104b" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261104b"></script>
 </body>
 </html>

@@ -177,10 +177,16 @@ function montarDados({ arquivo, nomes, P, T, freq, cab = {}, cameras = null, dat
   P.forEach((l, f) => pos.set(l, f * nM * 3));
   const t = new Float64Array(nF);
   for (let f = 0; f < nF; f++) t[f] = T && Number.isFinite(T[f]) ? T[f] : (freq ? f / freq : f);
-  const est = nomes.map((_, m) => {
+  const est = estatistica(pos, nM, 0, nF - 1);
+  if (est.every((e) => !e.validos)) throw new Error('nenhuma coordenada válida na tabela.');
+  return { arquivo, cab, nomes, nM, nF, freq, t, pos, est, estTotal: est, f0: 0, f1: nF - 1, cameras, data, tipo };
+}
+// média, desvio padrão, extremos e quadros válidos de cada marcador entre os quadros f0 e f1
+function estatistica(pos, nM, f0, f1) {
+  return [...Array(nM).keys()].map((m) => {
     const s = [0, 0, 0], s2 = [0, 0, 0], mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
     let n = 0;
-    for (let f = 0; f < nF; f++) {
+    for (let f = f0; f <= f1; f++) {
       const k = (f * nM + m) * 3;
       if (Number.isNaN(pos[k])) continue;
       n++;
@@ -191,8 +197,6 @@ function montarDados({ arquivo, nomes, P, T, freq, cab = {}, cameras = null, dat
     const pp = mx.map((v, a) => (n ? v - mn[a] : NaN));
     return { media, dp, pp, mn, mx, validos: n };
   });
-  if (est.every((e) => !e.validos)) throw new Error('nenhuma coordenada válida na tabela.');
-  return { arquivo, cab, nomes, nM, nF, freq, t, pos, est, cameras, data, tipo };
 }
 
 // ---------------------------------------------------------------- estado
@@ -235,10 +239,10 @@ const nome = (m) => S.apelidos[m] || S.d.nomes[m];
 let CENA = null, CAM = null;
 function montarCena() {
   const d = S.d, mn = [0, 0, 0], mx = [0, 0, 0]; // inclui a origem do Qualisys
-  d.est.forEach((e) => { if (!e.validos) return; for (let a = 0; a < 3; a++) { mn[a] = Math.min(mn[a], e.mn[a]); mx[a] = Math.max(mx[a], e.mx[a]); } });
+  d.estTotal.forEach((e) => { if (!e.validos) return; for (let a = 0; a < 3; a++) { mn[a] = Math.min(mn[a], e.mn[a]); mx[a] = Math.max(mx[a], e.mx[a]); } });
   if (!S.origem) { // sem origem: enquadra só os marcadores
     const m2 = [Infinity, Infinity, Infinity], x2 = [-Infinity, -Infinity, -Infinity];
-    d.est.forEach((e) => { if (!e.validos) return; for (let a = 0; a < 3; a++) { m2[a] = Math.min(m2[a], e.mn[a]); x2[a] = Math.max(x2[a], e.mx[a]); } });
+    d.estTotal.forEach((e) => { if (!e.validos) return; for (let a = 0; a < 3; a++) { m2[a] = Math.min(m2[a], e.mn[a]); x2[a] = Math.max(x2[a], e.mx[a]); } });
     if (Number.isFinite(m2[0])) { mn.splice(0, 3, ...m2); mx.splice(0, 3, ...x2); }
   }
   const R = Math.max(50, hyp(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2);
@@ -455,12 +459,25 @@ function desenharGrafico() {
   gx.fillStyle = TH.muted; gx.textAlign = 'right'; gx.fillText('t [s]', GM.l + iw, GH - 12);
   gx.save(); gx.translate(12, GM.t + (yb - GM.t) / 2); gx.rotate(-Math.PI / 2); gx.textAlign = 'center'; gx.textBaseline = 'middle';
   gx.fillText('deslocamento em relação à média [mm]', 0, 0); gx.restore();
+  // intervalo da média: escurece o que fica fora e marca as bordas
+  if (d.f0 > 0 || d.f1 < d.nF - 1 || GSEL) {
+    const [fa, fb] = GSEL ? [Math.min(GSEL.a, GSEL.b), Math.max(GSEL.a, GSEL.b)] : [d.f0, d.f1];
+    const xa = X(d.t[fa]), xb = X(d.t[fb]);
+    gx.save();
+    gx.fillStyle = TH.surface; gx.globalAlpha = 0.68;
+    gx.fillRect(GM.l, GM.t - 2, Math.max(0, xa - GM.l), yb - GM.t + 2);
+    gx.fillRect(xb, GM.t - 2, Math.max(0, GM.l + iw - xb), yb - GM.t + 2);
+    gx.globalAlpha = 0.1; gx.fillStyle = TH.accent; gx.fillRect(xa, GM.t - 2, xb - xa, yb - GM.t + 2);
+    gx.globalAlpha = 0.9; gx.strokeStyle = TH.accent; gx.lineWidth = 1.5;
+    for (const x of [xa, xb]) { gx.beginPath(); gx.moveTo(x, GM.t - 2); gx.lineTo(x, yb); gx.stroke(); }
+    gx.restore();
+  }
   // instante atual e hover
   const linhaV = (t, cor, tr) => { const x = X(t); gx.save(); gx.strokeStyle = cor; gx.globalAlpha = 0.7; gx.setLineDash(tr ? [3, 3] : []); gx.lineWidth = 1.2; gx.beginPath(); gx.moveTo(x, GM.t); gx.lineTo(x, yb); gx.stroke(); gx.restore(); };
   linhaV(d.t[S.f], TH.ink, false);
   if (GHOVER != null) linhaV(d.t[GHOVER], TH.ink, true);
 }
-let GHOVER = null;
+let GHOVER = null, GSEL = null, gDown = null;
 function quadroDoGrafico(e) {
   const r = gr.getBoundingClientRect(), { iw } = geomGrafico(), d = S.d;
   const u = clamp((e.clientX - r.left - GM.l) / iw, 0, 1);
@@ -479,7 +496,73 @@ gr.addEventListener('pointermove', (e) => {
   desenharGrafico();
 });
 gr.addEventListener('pointerleave', () => { GHOVER = null; $('#grTip').hidden = true; desenharGrafico(); });
-gr.addEventListener('click', (e) => { if (S.d) definirQuadro(quadroDoGrafico(e), true); });
+// clique = ir ao instante; arrastar = escolher o intervalo da média
+gr.addEventListener('pointerdown', (e) => {
+  if (!S.d || S.d.nF < 2) return;
+  gr.setPointerCapture(e.pointerId);
+  gDown = { x: e.clientX, f: quadroDoGrafico(e) };
+});
+gr.addEventListener('pointermove', (e) => {
+  if (!gDown) return;
+  if (!GSEL && Math.abs(e.clientX - gDown.x) > 4) GSEL = { a: gDown.f, b: gDown.f };
+  if (GSEL) { GSEL.b = quadroDoGrafico(e); desenharGrafico(); }
+});
+gr.addEventListener('pointerup', (e) => {
+  if (!gDown) return;
+  if (GSEL) { const a = Math.min(GSEL.a, GSEL.b), b = Math.max(GSEL.a, GSEL.b); GSEL = null; aplicarIntervalo(a, b); }
+  else definirQuadro(quadroDoGrafico(e), true);
+  gDown = null;
+});
+gr.addEventListener('pointercancel', () => { gDown = null; GSEL = null; desenharGrafico(); });
+
+// ---------------------------------------------------------------- intervalo da média
+function aplicarIntervalo(f0, f1) {
+  const d = S.d;
+  f0 = clamp(Math.round(f0), 0, d.nF - 1); f1 = clamp(Math.round(f1), 0, d.nF - 1);
+  if (f1 < f0) [f0, f1] = [f1, f0];
+  if (f1 - f0 < 1 && d.nF > 1) f1 = Math.min(d.nF - 1, f0 + 1);
+  const est = estatistica(d.pos, d.nM, f0, f1);
+  if (est.every((e) => !e.validos)) { $('#intInfo').textContent = 'Nenhum marcador visto nesse intervalo.'; return; }
+  d.f0 = f0; d.f1 = f1; d.est = est;
+  CACHE_GR = null;
+  intervaloUI();
+  tabelaMarcadores(); tabelaEquilibrio(); ligacoesUI();
+  pedirDesenho();
+}
+const quadroDoTempo = (t) => { const d = S.d; let f = 0; while (f < d.nF - 1 && d.t[f] < t - 1e-9) f++; return f; };
+function intervaloUI() {
+  const d = S.d, n = d.f1 - d.f0 + 1, dec = d.freq ? 2 : 0;
+  $('#intIni').value = +d.t[d.f0].toFixed(dec + 1); $('#intFim').value = +d.t[d.f1].toFixed(dec + 1);
+  const inteiro = d.f0 === 0 && d.f1 === d.nF - 1;
+  $('#intInfo').innerHTML = (inteiro ? 'Ensaio inteiro' : `De ${fmt(d.t[d.f0], dec)} a ${fmt(d.t[d.f1], dec)}${d.freq ? ' s' : ''}`)
+    + ` · ${fmt(n, 0)} quadros${d.freq ? ` (${fmt(n / d.freq, 1)} s)` : ''}`;
+  $('#intTudo').disabled = inteiro;
+}
+// trecho contínuo mais longo em que nenhum marcador varia mais que 3x o ruído (a janela mais quieta)
+function trechoParado() {
+  const d = S.d, jan = Math.max(2, Math.round((d.freq || 60) * 0.5)), nJ = Math.floor(d.nF / jan);
+  if (nJ < 2) return null;
+  const amp = new Float64Array(nJ);
+  for (let j = 0; j < nJ; j++) {
+    let maior = 0;
+    for (let m = 0; m < d.nM; m++) for (let a = 0; a < 3; a++) {
+      let lo = Infinity, hi = -Infinity;
+      for (let f = j * jan; f < (j + 1) * jan; f++) { const v = d.pos[(f * d.nM + m) * 3 + a]; if (v < lo) lo = v; if (v > hi) hi = v; }
+      if (hi > lo) maior = Math.max(maior, hi - lo);
+    }
+    amp[j] = maior;
+  }
+  const lim = 3 * Math.min(...amp); // ruído das câmeras = janela mais quieta do ensaio
+  let melhor = null, ini = -1;
+  for (let j = 0; j <= nJ; j++) {
+    const quieto = j < nJ && amp[j] <= lim;
+    if (quieto && ini < 0) ini = j;
+    if (!quieto && ini >= 0) { if (!melhor || j - ini > melhor[1] - melhor[0]) melhor = [ini, j]; ini = -1; }
+  }
+  if (!melhor) return null;
+  const f0 = melhor[0] * jan, f1 = melhor[1] === nJ ? d.nF - 1 : melhor[1] * jan - 1;
+  return [f0, f1];
+}
 
 // ---------------------------------------------------------------- painéis
 function paineis() {
@@ -500,6 +583,8 @@ function paineis() {
   $('#modoPos').disabled = estatico; $('#exag').disabled = estatico; $('#chRastro').disabled = estatico;
   tabelaCab();
   S.pag = 0; tabelaDados();
+  $('#intervalo').hidden = estatico;
+  intervaloUI();
   tabelaMarcadores();
   tabelaEquilibrio();
   ligacoesUI();
@@ -579,7 +664,7 @@ function tabelaMarcadores() {
       const ppMax = Math.max(...e.pp), eixo = EIXOS[e.pp.indexOf(ppMax)];
       return `<tr data-m="${m}" class="${m === S.sel ? 'on' : ''}"><td><input type="text" value="${esc(nome(m))}" data-nome="${m}" aria-label="Nome do marcador ${esc(d.nomes[m])}" title="${esc(d.nomes[m])}"></td>`
         + `<td>${fmt(e.media[0], 1)}</td><td>${fmt(e.media[1], 1)}</td><td>${fmt(e.media[2], 1)}</td>`
-        + `<td>${fmt(ppMax, 1)} <small>em ${eixo}</small></td><td>${fmt(100 * e.validos / d.nF, 0)}%</td></tr>`;
+        + `<td>${fmt(ppMax, 1)} <small>em ${eixo}</small></td><td>${fmt(100 * e.validos / (d.f1 - d.f0 + 1), 0)}%</td></tr>`;
     }).join('') + '</tbody>';
 }
 function tabelaEquilibrio() {
@@ -782,13 +867,29 @@ $('#ligLista').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-rm]'); if (!b) return;
   S.ligs.splice(+b.dataset.rm, 1); salvarPrefs(); ligacoesUI(); pedirDesenho();
 });
+const lerCampo = (id) => { const v = parseFloat(String($(id).value).replace(',', '.')); return Number.isFinite(v) ? v : null; };
+['#intIni', '#intFim'].forEach((id) => $(id).addEventListener('change', () => {
+  const d = S.d; if (!d) return;
+  const a = lerCampo('#intIni'), b = lerCampo('#intFim');
+  aplicarIntervalo(a == null ? d.f0 : quadroDoTempo(a), b == null ? d.f1 : quadroDoTempo(b));
+}));
+$('#intDeAgora').addEventListener('click', () => { const d = S.d; if (d) aplicarIntervalo(S.f, Math.max(S.f + 1, d.f1)); });
+$('#intAteAgora').addEventListener('click', () => { const d = S.d; if (d) aplicarIntervalo(Math.min(d.f0, S.f - 1), S.f); });
+$('#intTudo').addEventListener('click', () => { const d = S.d; if (d) aplicarIntervalo(0, d.nF - 1); });
+$('#intRepouso').addEventListener('click', () => {
+  const r = trechoParado();
+  if (r) aplicarIntervalo(r[0], r[1]);
+  else $('#intInfo').textContent = 'Não encontrei um trecho parado: os marcadores se movem durante todo o ensaio.';
+});
 $('#btnCsv').addEventListener('click', () => {
   const d = S.d; if (!d) return;
   const n = (v) => (Number.isFinite(v) ? v.toFixed(3) : '');
-  const linhas = ['marcador;nome_qtm;x_mm;y_mm;z_mm;dp_x_mm;dp_y_mm;dp_z_mm;validos']
-    .concat(d.est.map((e, m) => [nome(m), d.nomes[m], ...e.media.map(n), ...e.dp.map(n), e.validos].join(';')));
+  const ti = d.t[d.f0], tf = d.t[d.f1], inteiro = d.f0 === 0 && d.f1 === d.nF - 1;
+  const linhas = ['marcador;nome_qtm;x_mm;y_mm;z_mm;dp_x_mm;dp_y_mm;dp_z_mm;validos;t_ini_s;t_fim_s']
+    .concat(d.est.map((e, m) => [nome(m), d.nomes[m], ...e.media.map(n), ...e.dp.map(n), e.validos, n(ti), n(tf)].join(';')));
   const a = document.createElement('a');
-  a.download = `equilibrio_${d.arquivo.replace(/\.[^.]+$/, '')}.csv`;
+  const sufixo = inteiro ? '' : `_t${ti.toFixed(1)}-${tf.toFixed(1)}s`.replace(/\./g, ',');
+  a.download = `equilibrio_${d.arquivo.replace(/\.[^.]+$/, '')}${sufixo}.csv`;
   a.href = URL.createObjectURL(new Blob([linhas.join('\r\n') + '\r\n'], { type: 'text/csv' }));
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });

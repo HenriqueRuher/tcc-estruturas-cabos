@@ -661,3 +661,32 @@ button:hover .bi, .ghost-file:hover .bi { color: var(--accent); }
 .chave input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .chave:has(input:checked) { color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .chave input, .chave input::before { transition: none; } }
+
+/* intervalo da média (card Posição de equilíbrio) */
+.intervalo { margin-bottom: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 10px; }
+.int-linha { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.int-rot { font-weight: 600; color: var(--ink); margin-right: auto; }
+.int-linha label { display: inline-flex; align-items: center; gap: 5px; }
+.int-linha input[type=number] { width: 74px; background: var(--surface); padding: 4px 7px; }
+.int-botoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.int-botoes .add { margin: 0; height: 28px; padding: 0 9px; background: var(--surface); }
+.int-botoes .add:disabled { opacity: .5; cursor: default; }
+.intervalo .res { margin-top: 8px; }
+
+/* todas as caixas de seleção viram chave liga/desliga (mesmo visual da .chave) */
+input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; margin: 0; flex: 0 0 auto; position: relative; cursor: pointer;
+  width: 30px; height: 17px; border-radius: 99px; background: var(--surface-2); border: 1px solid var(--line);
+  vertical-align: middle; transition: background .15s, border-color .15s;
+}
+input[type="checkbox"]::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s, background .15s;
+}
+input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"]:checked::before { transform: translateX(13px); background: var(--accent-ink); }
+label:hover > input[type="checkbox"]:not(:checked) { border-color: var(--muted); }
+input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="checkbox"]:disabled { opacity: .45; cursor: default; }
+.checks label, .seguir { gap: 7px; }
+@media (prefers-reduced-motion: reduce) { input[type="checkbox"], input[type="checkbox"]::before { transition: none; } }
