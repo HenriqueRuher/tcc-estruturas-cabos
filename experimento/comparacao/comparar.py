@@ -19,6 +19,7 @@ A posição de arco de cada marcador ao longo da corrente não foi medida. Por i
     do nó do modelo. Inclui o deslizamento ao longo do cabo, mas herda a incerteza desse arco.
 """
 import csv
+import json
 import sys
 
 import numpy as np
@@ -163,10 +164,12 @@ def main():
     # ---- T0 e trações
     print(f'\n{"":4s} {"T0 real (q·a)":>16s} {"T0 analítico":>13s} {"T0 Ansys meio":>14s} {"Ansys junto a P":>16s}  [N]')
     sig_a = {r: aj['ramos'][r]['sigma_a_mm'] for r in aj['ramos']}
+    tr_vis = {k: {} for k in TRAMOS}          # trações de cada ramo, para o visualizador
     for k, (ramo, sc, q) in TRAMOS.items():
         Tr = aj['ramos'][ramo]['T0_N']
         sTr = q * sig_a[ramo] / 1000
         Ta, Tm = an['ramos'][k]['T0'], ans['tr'][k]['T0_meio']
+        tr_vis[k].update(T0_real=Tr, sT0_real=sTr, T0_an=Ta, T0_ansys=Tm)
         print(f'{k:4s} {Tr:9.3f} ± {sTr:.3f} {Ta:13.4f} {Tm:14.4f} {ans["tr"][k]["T0_junto_P"]:16.4f}')
         linhas.append(['T0 (tração horizontal)', f'{k} ({ramo})', f'{Tr:.3f} ± {sTr:.3f}', f'{Ta:.4f}', f'{Tm:.4f}',
                        f'{100 * (Ta / Tr - 1):+.1f}%', f'{100 * (Tm / Tr - 1):+.1f}%', 'N',
@@ -182,6 +185,7 @@ def main():
         Tfix_real = q * rr['a_mm'] / 1000 * np.sqrt(1 + (rr['tan_no'] + X.RAMOS[ramo]['L'] * 1000 / rr['a_mm']) ** 2)
         sV_an += a_['V_fix']
         sV_ans += R[1]
+        tr_vis[k].update(Tfix_real=Tfix_real, Tfix_an=a_['T_fix'], Tfix_ansys=float(np.linalg.norm(R)))
         print(f'{k:4s} {a_["T_fix"]:20.4f} {np.linalg.norm(R):10.4f} {ans["tr"][k]["N_fix"]:16.4f} {a_["V_fix"]:8.4f} {R[1]:10.4f}'
               f'   (inferida da geometria real: {Tfix_real:.3f})')
         linhas.append(['tração na fixação', f'{k} ({ramo})', f'{Tfix_real:.3f} (inferida)', f'{a_["T_fix"]:.4f}',
@@ -207,7 +211,45 @@ def main():
         ansys={k: dict(T0_meio=v['T0_meio'], T0_junto_P=v['T0_junto_P'], N_fix=v['N_fix'], R=v['R'], L=v['L'])
                for k, v in ans['tr'].items()},
         soma_verticais=dict(peso=peso, analitico=sV_an, ansys=sV_ans)))
+    exportar_visualizador(real_no, mods, marc, tr_vis, dict(peso=peso, analitico=sV_an, ansys=sV_ans), an)
     figuras(Ex, Pr, aj, an, ans, mods, marc)
+
+
+def exportar_visualizador(real_no, mods, marc, tr, verticais, an):
+    """Grava visualizador/experimento_comparacao.js: o que a página do Experimento precisa para sobrepor o
+    analítico e o Ansys aos marcadores do Qualisys (curvas em mm no sistema do Qualisys, erros e trações)."""
+    v1 = lambda v, n=1: [round(float(c), n) for c in v]
+    rms = lambda e: float(np.sqrt(np.mean(np.square(e))))
+    chave = {'Analítico': 'analitico', 'Ansys': 'ansys'}
+    ramos = []
+    for k, (ramo, sc, q) in TRAMOS.items():
+        r = dict(id=k, prefixo=ramo, nome=X.RAMOS[ramo]['nome'], L_mm=round(X.RAMOS[ramo]['L'] * 1000, 1), q_Nm=round(q, 4),
+                 real=dict(T0=round(tr[k]['T0_real'], 3), sT0=round(tr[k]['sT0_real'], 3), Tfix=round(tr[k]['Tfix_real'], 3)))
+        for nome, c in chave.items():
+            curva = np.asarray(mods[nome]['curva'][k])
+            passo = max(1, len(curva) // 50)
+            pts = [v1(p) for p in curva[::passo]]
+            if not np.allclose(curva[-1], curva[::passo][-1]):
+                pts.append(v1(curva[-1]))
+            r[c] = dict(curva=pts, T0=round(tr[k]['T0_' + ('an' if c == 'analitico' else 'ansys')], 4),
+                        Tfix=round(tr[k]['Tfix_' + ('an' if c == 'analitico' else 'ansys')], 4))
+        ramos.append(r)
+    obj = {X.TSV.name: dict(
+        no=dict(real=v1(real_no), **{c: v1(mods[n]['P']) for n, c in chave.items()},
+                erro={c: round(float(np.linalg.norm(mods[n]['dP'])), 2) for n, c in chave.items()}),
+        sigma_no=v1(an['monte_carlo']['sigma_P_qualisys_mm'], 2),
+        ramos=ramos,
+        marcadores=[dict(nome=l['marcador'], ramo=l['tramo'], real=v1(l['real']), arco_mm=round(l['s_real'], 1),
+                         **{c: dict(pe=v1(l[n]['pe']), erro=round(l[n]['normal'], 2)) for n, c in chave.items()}) for l in marc],
+        rms={c: round(rms([l[n]['normal'] for l in marc]), 2) for n, c in chave.items()},
+        maximo={c: round(max(l[n]['normal'] for l in marc), 2) for n, c in chave.items()},
+        verticais={k: round(v, 3) for k, v in verticais.items()},
+        medidas=dict(L1_mm=X.L1 * 1000, eta=X.ETA, LC_mm=X.LC * 1000, q1_kgm=round(X.Q1_KG, 4), q2_kgm=round(X.Q2_KG, 4)))}
+    saida = X.RAIZ / 'visualizador' / 'experimento_comparacao.js'
+    saida.write_text('// Gerado por experimento/comparacao/comparar.py. Não editar.\n'
+                     'window.QTM_COMPARACAO = ' + json.dumps(obj, ensure_ascii=False, separators=(',', ':')) + ';\n',
+                     encoding='utf8', newline='\n')
+    print(f'-> {saida.relative_to(X.RAIZ)} ({saida.stat().st_size / 1000:.1f} kB)')
 
 
 def figuras(Ex, Pr, aj, an, ans, mods, marc):

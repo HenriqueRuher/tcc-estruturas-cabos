@@ -17,7 +17,7 @@ let TH = {};
 function lerTema() {
   const c = getComputedStyle(document.documentElement), g = (n) => c.getPropertyValue(n).trim();
   TH = { surface: g('--surface'), s2: g('--surface-2'), ink: g('--ink'), ink2: g('--ink-2'), muted: g('--muted'),
-    grid: g('--grid'), line: g('--line'), accent: g('--accent'), halo: g('--halo') };
+    grid: g('--grid'), line: g('--line'), accent: g('--accent'), halo: g('--halo'), c1: g('--c1'), c2: g('--c2') };
 }
 function niceTicks(lo, hi, n = 6) {
   const span = hi - lo || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
@@ -207,6 +207,7 @@ const S = {
   modo: 'quadro', exag: 1,
   nomes: true, rastro: false, piso: true, origem: true, lab: true, montagem: true, pano: false, visada: false,
   escalaPropria: false,
+  compAn: true, compAns: true, compExag: 20,
   pag: 0, seguir: true,
   apelidos: [], ligs: [],
 };
@@ -330,6 +331,7 @@ function desenhar() {
     ctx.strokeStyle = TH.ink2; ctx.lineWidth = labAtivo() ? 1 : 2.5; ctx.globalAlpha = labAtivo() ? 0.45 : 1; // com o laboratório, a corrente 3D já aparece
     ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); ctx.globalAlpha = 1;
   }
+  if (COMP) desenharComparacao();
   // linhas de visada: de cada câmera até cada alvo (verde = vê; vermelho = não vê)
   if (S.visada && labAtivo() && LAB.visada) {
     ctx.save(); ctx.lineWidth = 1; ctx.globalAlpha = 0.55;
@@ -402,6 +404,77 @@ function desenhar() {
   desenharGrafico();
   acompanharTabela();
 }
+// ---------------------------------------------------------------- comparação com os modelos
+// experimento_comparacao.js (gerado por experimento/comparacao/comparar.py) traz, por arquivo de ensaio, as
+// curvas do modelo analítico e do Ansys no sistema do Qualisys e o erro em cada marcador. Séries: os marcadores
+// medidos ficam na cor da tinta; o analítico é a 1ª cor categórica (linha cheia) e o Ansys a 2ª (tracejada).
+let COMP = null;
+const SERIES_COMP = [['analitico', 'Analítico', 'compAn', 'c1', []], ['ansys', 'Ansys', 'compAns', 'c2', [7, 5]]];
+function comparacaoDoEnsaio(d) {
+  const c = (window.QTM_COMPARACAO || {})[d.arquivo];
+  if (!c) return null;
+  const idx = {}; d.nomes.forEach((n, m) => { idx[n] = m; });
+  if (idx.centro == null || !c.marcadores.every((k) => idx[k.nome] != null)) return null;
+  // itens comparados: o nó e cada marcador, com o ponto correspondente em cada modelo
+  const itens = [{ nome: 'centro', m: idx.centro, ramo: '', real: c.no.real, arco: 0,
+    analitico: { pe: c.no.analitico, erro: c.no.erro.analitico }, ansys: { pe: c.no.ansys, erro: c.no.erro.ansys } },
+  ...c.marcadores.map((k) => ({ nome: k.nome, m: idx[k.nome], ramo: k.ramo, real: k.real, arco: k.arco_mm, analitico: k.analitico, ansys: k.ansys }))];
+  return { ...c, itens };
+}
+function desenharComparacao() {
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  for (const [k, , chave, cor, traco] of SERIES_COMP) {
+    if (!S[chave]) continue;
+    for (const r of COMP.ramos) {
+      const q = r[k].curva.map(proj);
+      const caminho = () => { ctx.beginPath(); let aberto = false; for (const p of q) { if (p[2] < 1) { aberto = false; continue; } if (aberto) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); aberto = true; } } };
+      ctx.setLineDash([]); ctx.strokeStyle = TH.surface; ctx.globalAlpha = 0.75; ctx.lineWidth = 4.5; caminho(); ctx.stroke(); // contorno na cor do fundo
+      ctx.globalAlpha = 1; ctx.setLineDash(traco); ctx.strokeStyle = TH[cor]; ctx.lineWidth = 2; caminho(); ctx.stroke();
+    }
+  }
+  ctx.setLineDash([]);
+  // desvio de cada modelo em cada ponto medido, ampliado para dar para ver (na escala real são milímetros)
+  if (S.compExag > 1) for (const [k, , chave, cor] of SERIES_COMP) {
+    if (!S[chave]) continue;
+    for (const it of COMP.itens) {
+      const a = proj(it.real), b = proj(it.real.map((v, i) => v + S.compExag * (it[k].pe[i] - v)));
+      if (a[2] < 1 || b[2] < 1) continue;
+      ctx.strokeStyle = TH[cor]; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      ctx.beginPath(); ctx.arc(b[0], b[1], 4, 0, 2 * Math.PI); ctx.fillStyle = TH[cor]; ctx.fill();
+      ctx.strokeStyle = TH.surface; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+function painelComparacao() {
+  COMP = comparacaoDoEnsaio(S.d);
+  $('#cardComp').hidden = !COMP;
+  if (!COMP) return;
+  const c = COMP, cel = (l, v) => `<div><div class="lbl">${l}</div><div class="val">${v}</div></div>`;
+  const sig = c.sigma_no.reduce((s, v) => s + v, 0) / c.sigma_no.length;
+  $('#compResumo').innerHTML = cel('Nó: analítico − medido', `${fmt(c.no.erro.analitico, 1)} <small>mm</small>`)
+    + cel('Nó: Ansys − medido', `${fmt(c.no.erro.ansys, 1)} <small>mm</small>`)
+    + cel('Incerteza do modelo no nó', `± ${fmt(sig, 1)} <small>mm por eixo</small>`);
+  const teto = Math.max(1, Math.ceil(Math.max(...c.itens.flatMap((it) => [it.analitico.erro, it.ansys.erro]))));
+  const barra = (v, cls) => `<td class="bar"><span class="bc ${cls}"><i style="width:${(100 * v / teto).toFixed(1)}%"></i></span>${fmt(v, 1)}</td>`;
+  const nomeRamo = Object.fromEntries(c.ramos.map((r) => [r.id, r.nome]));
+  $('#tblComp').innerHTML = '<thead><tr><th>Ponto medido</th><th>Ramo</th><th>Arco desde o nó [mm]</th><th>Analítico [mm]</th><th>Ansys [mm]</th></tr></thead><tbody>'
+    + c.itens.map((it) => `<tr data-m="${it.m}"><td>${esc(nome(it.m))}</td><td class="dim">${it.ramo ? esc(nomeRamo[it.ramo]) : 'nó'}</td><td>${it.ramo ? fmt(it.arco, 0) : '—'}</td>`
+      + barra(it.analitico.erro, 'an') + barra(it.ansys.erro, 'ans') + '</tr>').join('')
+    + `</tbody><tfoot><tr><td colspan="2">RMS nos ${c.marcadores.length} marcadores dos ramos</td><td></td><td>${fmt(c.rms.analitico, 1)}</td><td>${fmt(c.rms.ansys, 1)}</td></tr>`
+    + `<tr><td colspan="2">Maior erro num marcador</td><td></td><td>${fmt(c.maximo.analitico, 1)}</td><td>${fmt(c.maximo.ansys, 1)}</td></tr></tfoot>`;
+  $('#tblCompT').innerHTML = '<thead><tr><th rowspan="2">Ramo</th><th colspan="3" class="grp">Tração horizontal T₀ [N]</th><th colspan="3" class="grp">Tração na fixação [N]</th></tr>'
+    + '<tr><th>inferida da forma</th><th>Analítico</th><th>Ansys</th><th>inferida da forma</th><th>Analítico</th><th>Ansys</th></tr></thead><tbody>'
+    + c.ramos.map((r) => `<tr><td>${esc(r.nome)}</td><td>${fmt(r.real.T0, 2)} <small>± ${fmt(r.real.sT0, 2)}</small></td><td>${fmt(r.analitico.T0, 2)}</td><td>${fmt(r.ansys.T0, 2)}</td>`
+      + `<td>${fmt(r.real.Tfix, 2)}</td><td>${fmt(r.analitico.Tfix, 2)}</td><td>${fmt(r.ansys.Tfix, 2)}</td></tr>`).join('') + '</tbody>';
+  const v = c.verticais, md = c.medidas;
+  $('#compNotaT').textContent = `Nenhuma tração foi medida neste ensaio (as leituras das células de carga foram descartadas): a coluna “inferida da forma” vem da catenária ajustada aos marcadores (T₀ = q·a). `
+    + `Soma das componentes verticais nas três fixações: ${fmt(v.analitico, 2)} N no analítico e ${fmt(v.ansys, 2)} N no Ansys, para ${fmt(v.peso, 2)} N de peso suspenso medido na balança.`;
+  $('#compNota').textContent = `Erro = distância de cada ponto medido à curva do modelo. Os dois modelos usam só o que foi medido: corrente grossa de ${fmt(md.L1_mm / 1000, 3)} m `
+    + `(${fmt(md.q1_kgm, 3)} kg/m) do perfil ao suporte, com o nó a ${fmt(100 * md.eta, 2)} % a partir do perfil, e corrente média de ${fmt(md.LC_mm / 1000, 3)} m (${fmt(md.q2_kgm, 3)} kg/m) do poste ao nó.`;
+  $('#tblComp').querySelectorAll('tbody tr').forEach((tr) => tr.classList.toggle('on', +tr.dataset.m === S.sel));
+}
+
 function desenharGrade() {
   const g = CENA.g;
   ctx.strokeStyle = TH.grid; ctx.lineWidth = 1;
@@ -457,7 +530,7 @@ function irParaPano() {
 }
 function salvarLab() { try { localStorage.setItem('qtm-lab', JSON.stringify({ lab: S.lab, montagem: S.montagem })); } catch (e) { /* sem storage */ } }
 function carregarScript(src) {
-  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105g'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
+  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105h'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
 }
 async function ligarLab() {
   $('#btnPano').hidden = !S.lab || LAB.estado === 'falhou';
@@ -766,6 +839,7 @@ function paineis() {
   intervaloUI();
   tabelaMarcadores();
   tabelaEquilibrio();
+  painelComparacao();
   ligacoesUI();
   const sl = $('#slider'); sl.max = d.nF - 1; sl.value = S.f;
 }
@@ -876,7 +950,7 @@ function atualizarTempo() {
 function selecionar(m) {
   S.sel = m;
   document.querySelectorAll('#tblDados th.grp').forEach((th, i) => th.classList.toggle('on', i === m));
-  document.querySelectorAll('#tblMarc tbody tr').forEach((tr) => tr.classList.toggle('on', +tr.dataset.m === m));
+  document.querySelectorAll('#tblMarc tbody tr, #tblComp tbody tr').forEach((tr) => tr.classList.toggle('on', +tr.dataset.m === m));
   pedirDesenho();
 }
 
@@ -999,6 +1073,7 @@ function passarMouse(e) {
     + (S.modo === 'quadro' && vis ? `<div><span class="k">no quadro</span> ${[0, 1, 2].map((a) => fmt(d.pos[k + a], 1)).join(' · ')} mm</div>` : '')
     + `<div><span class="k">média</span> ${e2.media.map((v) => fmt(v, 1)).join(' · ')} mm</div>`
     + `<div><span class="k">pico a pico</span> X ${fmt(e2.pp[0], 1)} · Y ${fmt(e2.pp[1], 1)} · Z ${fmt(e2.pp[2], 1)} mm</div>`
+    + (() => { const it = COMP && COMP.itens.find((x) => x.m === melhor); return it ? `<div><span class="k">distância ao modelo</span> analítico ${fmt(it.analitico.erro, 1)} mm · Ansys ${fmt(it.ansys.erro, 1)} mm</div>` : ''; })()
     + '<div class="k">clique para selecionar</div>';
   tip.hidden = false;
   let tx = mx + 14, ty = my + 14;
@@ -1089,6 +1164,10 @@ $('#modoPos').addEventListener('change', (e) => { S.modo = e.target.value; pedir
 $('#exag').addEventListener('change', (e) => { S.exag = +e.target.value; pedirDesenho(); });
 $('#chNomes').addEventListener('change', (e) => { S.nomes = e.target.checked; pedirDesenho(); });
 $('#chRastro').addEventListener('change', (e) => { S.rastro = e.target.checked; pedirDesenho(); });
+$('#chCompAn').addEventListener('change', (e) => { S.compAn = e.target.checked; pedirDesenho(); });
+$('#chCompAns').addEventListener('change', (e) => { S.compAns = e.target.checked; pedirDesenho(); });
+$('#compExag').addEventListener('change', (e) => { S.compExag = +e.target.value; pedirDesenho(); });
+$('#tblComp').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-m]'); if (tr) selecionar(+tr.dataset.m); });
 $('#chPiso').addEventListener('change', (e) => { S.piso = e.target.checked; pedirDesenho(); });
 $('#chOrigem').addEventListener('change', (e) => { S.origem = e.target.checked; if (S.d) montarCena(); pedirDesenho(); });
 $('#chLab').addEventListener('change', (e) => {

@@ -640,6 +640,11 @@ const FONTE = {
   G: [[4, 6, 0, 6], [0, 6, 0, 0], [0, 0, 4, 0], [4, 0, 4, 3], [4, 3, 2, 3]], O: [[0, 0, 0, 6], [0, 6, 4, 6], [4, 6, 4, 0], [4, 0, 0, 0]],
   D: [[0, 0, 0, 6], [0, 6, 3, 6], [3, 6, 4, 4.5], [4, 4.5, 4, 1.5], [4, 1.5, 3, 0], [3, 0, 0, 0]], B: [[0, 0, 0, 6], [0, 6, 3.5, 6], [3.5, 6, 3.5, 3], [0, 3, 4, 3], [4, 3, 4, 0], [4, 0, 0, 0]],
   1: [[0.6, 4.8, 2, 6], [2, 6, 2, 0]], 2: [[0, 6, 4, 6], [4, 6, 4, 3], [4, 3, 0, 3], [0, 3, 0, 0], [0, 0, 4, 0]],
+  3: [[0, 6, 4, 6], [4, 6, 4, 0], [4, 0, 0, 0], [1, 3, 4, 3]], 4: [[0, 6, 0, 3], [0, 3, 4, 3], [4, 6, 4, 0]], 5: [[4, 6, 0, 6], [0, 6, 0, 3], [0, 3, 4, 3], [4, 3, 4, 0], [4, 0, 0, 0]],
+  6: [[4, 6, 0, 6], [0, 6, 0, 0], [0, 0, 4, 0], [4, 0, 4, 3], [4, 3, 0, 3]], 7: [[0, 6, 4, 6], [4, 6, 1.5, 0]], 8: [[0, 0, 0, 6], [0, 6, 4, 6], [4, 6, 4, 0], [4, 0, 0, 0], [0, 3, 4, 3]],
+  9: [[4, 3, 0, 3], [0, 3, 0, 6], [0, 6, 4, 6], [4, 6, 4, 0], [4, 0, 0, 0]], 0: [[1, 0, 0, 1], [0, 1, 0, 5], [0, 5, 1, 6], [1, 6, 3, 6], [3, 6, 4, 5], [4, 5, 4, 1], [4, 1, 3, 0], [3, 0, 1, 0]],
+  P: [[0, 0, 0, 6], [0, 6, 4, 6], [4, 6, 4, 3], [4, 3, 0, 3]], V: [[0, 6, 2, 0], [2, 0, 4, 6]], W: [[0, 6, 1, 0], [1, 0, 2, 4], [2, 4, 3, 0], [3, 0, 4, 6]], X: [[0, 0, 4, 6], [0, 6, 4, 0]],
+  '+': [[0.5, 3, 3.5, 3], [2, 1.5, 2, 4.5]], '-': [[0.8, 3, 3.2, 3]], '#': [[2, 6, 2, 3.2], [0, 3.2, 4, 3.2], [0.8, 1.8, 3.2, 1.8], [1.5, 0.4, 2.5, 0.4]], // '#' = símbolo de terra/blindagem
 };
 // texto no plano XY (normal +Z), começando em (0,0), altura h; devolve malha e largura
 function letreiro(txt, h, esp = 0.6, traco = 0.16) {
@@ -664,36 +669,266 @@ function rj45() {
   return { corpo, capa, contatos, L: 46 };
 }
 
+// ---------------------------------------------------------------- telas "pintadas"
+// quad no plano XY (normal +Z)
+function quadZ(x0, y0, x1, y1, z = 0) {
+  return { pos: [x0, y0, z, x1, y0, z, x1, y1, z, x0, y1, z], nor: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], idx: [0, 1, 2, 0, 2, 3] };
+}
+// Pintor de telas: retângulos, traços e letras coloridos em coordenadas normalizadas (s, t) ∈ [0, 1]² (t para cima)
+// sobre uma área de larg × alt mm, centrada em x = 0 e começando em y = b0. A camada k fica k·passo acima do plano
+// (as de cima cobrem as de baixo). partes() devolve uma parte emissiva por cor.
+function pintor(larg, alt, b0 = 0, c0 = 0, passo = 0.2) {
+  const cores = new Map();
+  const g = (cor) => { const k = cor.join(','); if (!cores.has(k)) cores.set(k, { cor, g: G.vazia() }); return cores.get(k).g; };
+  const X = (s) => (s - 0.5) * larg, Y = (t) => b0 + t * alt, Z = (k) => c0 + k * passo;
+  const p = {
+    ret(cor, s0, t0, s1, t1, k = 1) { G.juntar(g(cor), quadZ(X(s0), Y(t0), X(s1), Y(t1), Z(k))); return p; },
+    // traço de espessura e (mm) entre dois pontos
+    traco(cor, s0, t0, s1, t1, e = 0.6, k = 1) {
+      const x0 = X(s0), y0 = Y(t0), x1 = X(s1), y1 = Y(t1), L = Math.hypot(x1 - x0, y1 - y0) || 1, nx = -(y1 - y0) / L * e / 2, ny = (x1 - x0) / L * e / 2, z = Z(k);
+      G.juntar(g(cor), { pos: [x0 - nx, y0 - ny, z, x1 - nx, y1 - ny, z, x1 + nx, y1 + ny, z, x0 + nx, y0 + ny, z], nor: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], idx: [0, 1, 2, 0, 2, 3] });
+      return p;
+    },
+    // "linhas de texto": n traços horizontais de comprimentos variados, empilhados para baixo a partir de (s, t)
+    texto(cor, s, t, compr, n = 1, dt = 0.022, e = 0.8, k = 1) {
+      for (let i = 0; i < n; i++) p.traco(cor, s, t - i * dt, s + compr * (0.6 + 0.1 * ((i * 7 + 3) % 5)), t - i * dt, e, k);
+      return p;
+    },
+    ponto(cor, s, t, r = 1, k = 1) { G.juntar(g(cor), T(G.disco(r, Z(k), 10), M.trans(X(s), Y(t), 0))); return p; },
+    letras(cor, txt, s, t, h, k = 1, traco = 0.16) { const l = letreiro(txt, h, 0.08, traco); G.juntar(g(cor), T(l.g, M.trans(X(s), Y(t), Z(k)))); return p; },
+    partes(nome, m, brilho = 0.5) {
+      return [...cores.values()].map(({ cor, g: gm }, i) => P(nome + ' ' + (i + 1), { cor: cor.map((v) => v * 0.15), metal: 0, rug: 0.2, emissivo: cor.map((v) => v * brilho) }, G.transformar(gm, m)));
+    },
+  };
+  return p;
+}
+
+// Tela do notebook das células: Windows 7 com o papel de parede azul "correlated SOLUTIONS" e a janela do programa
+// da Lynx (Configuração dos Canais: lista dos canais com "Cel. Carga 01/02" em vermelho, gráfico preto com grade,
+// escala de engenharia e o botão "Balanço") — fotos 3_medicoes/tela_lynx_configuracao_canais_celulas.
+function telaLynx(p) {
+  const az = [0.06, 0.42, 0.82], azC = [0.30, 0.68, 0.95], azM = [0.16, 0.56, 0.90], azE = [0.04, 0.26, 0.60], jan = [0.90, 0.92, 0.94], br = [0.98, 0.98, 0.98], tit = [0.60, 0.76, 0.92],
+    pr = [0.02, 0.02, 0.025], gr = [0.50, 0.52, 0.53], cz = [0.36, 0.38, 0.41], bt = [0.78, 0.81, 0.85], vd = [0.72, 0.86, 0.76], vm = [0.85, 0.12, 0.10], am = [0.95, 0.85, 0.25],
+    mar = [0.04, 0.08, 0.24], barra = [0.20, 0.36, 0.55], cla = [0.45, 0.62, 0.80], cia = [0.25, 0.78, 0.78];
+  p.ret(az, 0, 0, 1, 1, 0).ret(azC, 0, 0.82, 1, 1, 1).ret(azM, 0, 0.64, 1, 0.82, 1);
+  for (let i = 0; i < 5; i++) p.traco(azE, -0.02 + i * 0.01, 0.10 + i * 0.03, 0.30 - i * 0.035, 0.045, 1.8, 1); // ondas do papel de parede
+  // ícones da área de trabalho (duas colunas à esquerda e um no canto de cima à direita)
+  const ic = [br, am, azC, bt];
+  for (let c = 0; c < 2; c++) for (let l = 0; l < 8; l++) {
+    const s = 0.010 + c * 0.045, t = 0.915 - l * 0.108;
+    p.ret(ic[(c * 3 + l) % 4], s, t, s + 0.026, t + 0.046, 2).traco(br, s - 0.004, t - 0.016, s + 0.030, t - 0.016, 0.7, 2);
+  }
+  p.ret(am, 0.957, 0.905, 0.979, 0.955, 2).traco(br, 0.945, 0.888, 0.990, 0.888, 0.7, 2);
+  // logo do papel de parede: "correlated" em negrito sobre uma linha e "SOLUTIONS" espaçado
+  p.letras(pr, 'CORRELATED', 0.728, 0.108, 9, 2, 0.27).traco(pr, 0.728, 0.097, 0.945, 0.097, 0.8, 2);
+  [...'SOLUTIONS'].forEach((ch, i) => p.letras(mar, ch, 0.728 + i * 0.0255 + (ch === 'I' ? 0.005 : 0), 0.045, 6.5, 2, 0.13));
+  // janelinha "Conectar" aparecendo por baixo da principal
+  p.ret(tit, 0.385, 0.135, 0.585, 0.185, 2).ret(jan, 0.389, 0.141, 0.581, 0.185, 3).ret(bt, 0.425, 0.148, 0.49, 0.172, 4);
+  // janela "Configuração dos Canais" (moldura Aero, botão de fechar, título)
+  const w0 = 0.085, w1 = 0.955, h0 = 0.185, h1 = 0.835;
+  p.ret(tit, w0, h0, w1, h1, 3).ret(jan, w0 + 0.004, h0 + 0.007, w1 - 0.004, h1 - 0.036, 4);
+  p.ret(vm, w1 - 0.036, h1 - 0.029, w1 - 0.006, h1 - 0.005, 4).ret(bt, w1 - 0.066, h1 - 0.029, w1 - 0.040, h1 - 0.009, 4).traco(cz, w0 + 0.02, h1 - 0.018, w0 + 0.13, h1 - 0.018, 1.0, 4);
+  // lista dos canais: fundo branco, coluna verde das leituras, linhas de texto (canais 6 e 7 em vermelho)
+  p.ret(br, w0 + 0.008, 0.335, 0.375, 0.772, 5).ret(vd, 0.205, 0.50, 0.290, 0.748, 6).ret(bt, w0 + 0.008, 0.772, 0.375, 0.797, 5);
+  for (let i = 0; i < 17; i++) {
+    const t = 0.736 - i * 0.0225, c = i === 6 || i === 7 ? vm : gr;
+    p.traco(c, 0.115 + (i % 4 ? 0.012 : 0), t, 0.185 - (i % 3) * 0.012, t, 0.9, 7);
+    if (i < 11) p.traco(c, 0.228, t, 0.278, t, 0.9, 7).traco(gr, 0.300, t, 0.362 - (i % 2) * 0.018, t, 0.9, 7);
+  }
+  p.traco(gr, 0.200, 0.335, 0.200, 0.772, 0.35, 7).traco(gr, 0.293, 0.335, 0.293, 0.772, 0.35, 7);
+  p.texto(gr, 0.10, 0.305, 0.09, 4, 0.021, 0.8, 5).texto(gr, 0.22, 0.262, 0.07, 2, 0.021, 0.8, 5).ret(bt, 0.305, 0.292, 0.372, 0.312, 5);
+  // barra de ferramentas e gráfico preto com grade (8 × 6 divisões) e régua amarela
+  p.ret(bt, 0.385, 0.776, w1 - 0.008, 0.799, 5);
+  for (let i = 0; i < 15; i++) p.ret(i % 5 === 0 ? am : (i % 5 === 3 ? vm : cz), 0.392 + i * 0.0155, 0.781, 0.401 + i * 0.0155, 0.794, 6);
+  p.ret(br, 0.69, 0.780, 0.755, 0.795, 6).ret(bt, 0.80, 0.780, 0.84, 0.795, 6).ret(bt, 0.90, 0.780, 0.94, 0.795, 6);
+  const g0 = 0.390, g1 = w1 - 0.010, e0 = 0.425, e1 = 0.772, gx = g0 + 0.038, gy = e0 + 0.014;
+  p.ret(pr, g0, e0, g1, e1, 5);
+  for (let i = 1; i <= 8; i++) { const s = gx + (g1 - gx) * i / 8.35; p.traco(gr, s, gy, s, e1, 0.4, 6); }
+  for (let j = 0; j <= 5; j++) { const t = gy + (e1 - gy) * (j + 0.25) / 5.6; p.traco(gr, gx, t, g1, t, 0.4, 6).traco(br, gx - 0.012, t, gx - 0.004, t, 0.7, 6); }
+  p.traco(br, gx, gy, gx, e1, 0.7, 6).traco(br, gx, gy, g1, gy, 0.7, 6).traco(am, g0 + 0.010, e0, g0 + 0.010, e1, 0.7, 6);
+  p.traco(am, g1 - 0.058, e1 - 0.014, g1 - 0.006, e1 - 0.014, 0.9, 6).traco(br, gx + 0.012, e1 - 0.04, gx + 0.024, e1 - 0.04, 0.5, 6).traco(br, gx + 0.018, e1 - 0.052, gx + 0.018, e1 - 0.028, 0.5, 6);
+  // painel de baixo: nome/unidade, escala de engenharia (barra azul com pontas vermelhas), entrada, excitação, balanço
+  p.ret(br, 0.396, 0.347, 0.452, 0.365, 5).ret(am, 0.396, 0.315, 0.452, 0.333, 5).ret(bt, 0.398, 0.277, 0.456, 0.297, 5).ret(bt, 0.388, 0.245, 0.456, 0.265, 5).ret(bt, 0.408, 0.213, 0.438, 0.233, 5);
+  p.ret(tit, 0.524, 0.236, 0.539, 0.343, 5).ret(vm, 0.520, 0.337, 0.543, 0.347, 6).ret(vm, 0.520, 0.230, 0.543, 0.240, 6);
+  p.texto(cz, 0.47, 0.375, 0.05, 1, 0.02, 0.8, 5).texto(cz, 0.555, 0.375, 0.06, 1, 0.02, 0.8, 5).texto(gr, 0.478, 0.335, 0.035, 3, 0.05, 0.7, 5).texto(gr, 0.552, 0.352, 0.03, 5, 0.029, 0.7, 5);
+  p.ret(br, 0.676, 0.356, 0.766, 0.373, 5).ret(br, 0.796, 0.356, 0.896, 0.373, 5).ret(br, 0.676, 0.252, 0.756, 0.268, 5).ret(bt, 0.906, 0.300, 0.950, 0.319, 5).ret(bt, 0.846, 0.292, 0.888, 0.310, 5);
+  p.texto(gr, 0.676, 0.385, 0.05, 1, 0.02, 0.7, 5).texto(gr, 0.796, 0.385, 0.05, 1, 0.02, 0.7, 5).texto(gr, 0.690, 0.318, 0.04, 3, 0.021, 0.7, 5).texto(gr, 0.800, 0.335, 0.05, 3, 0.022, 0.7, 5).texto(gr, 0.905, 0.280, 0.035, 3, 0.02, 0.7, 5);
+  p.ret(mar, 0.786, 0.222, 0.880, 0.264, 5).traco(br, 0.812, 0.250, 0.852, 0.250, 1.0, 6).traco(br, 0.818, 0.235, 0.846, 0.235, 1.0, 6).traco(br, 0.793, 0.243, 0.801, 0.243, 0.6, 6).traco(br, 0.864, 0.243, 0.874, 0.243, 0.6, 6);
+  for (const [a, b] of [[0.36, 0.42], [0.43, 0.49], [0.60, 0.67], [0.68, 0.745], [0.76, 0.815], [0.90, 0.94]]) p.ret(bt, a, h0 + 0.014, b, h0 + 0.034, 5);
+  p.ponto(vm, 0.265, h0 + 0.028, 0.9, 5).ponto(cia, 0.285, h0 + 0.028, 0.9, 5);
+  // barra de tarefas do Windows 7: botão iniciar, ícones, três programas abertos (os da Lynx) e relógio
+  p.ret(barra, 0, 0, 1, 0.044, 3).ponto(azC, 0.016, 0.022, 3.2, 4).ret(am, 0.045, 0.010, 0.066, 0.034, 4).ponto(vm, 0.095, 0.022, 2.6, 4).ponto(azC, 0.165, 0.022, 2.6, 4);
+  for (let i = 0; i < 3; i++) p.ret(cla, 0.195 + i * 0.084, 0.004, 0.272 + i * 0.084, 0.040, 4).ret(cia, 0.201 + i * 0.084, 0.011, 0.219 + i * 0.084, 0.033, 5).traco(br, 0.224 + i * 0.084, 0.022, 0.262 + i * 0.084, 0.022, 0.7, 5);
+  p.traco(br, 0.950, 0.029, 0.985, 0.029, 0.7, 4).traco(br, 0.945, 0.013, 0.985, 0.013, 0.7, 4);
+}
+
+// Tela do notebook da Qualisys: QTM (Qualisys Track Manager) com a vista 3D de cima — fundo escuro com grade,
+// eixos X vermelho e Y verde, origem azul, marcadores verdes e as três câmeras; à esquerda a árvore do projeto,
+// à direita a lista de trajetórias, em baixo as mensagens e a linha do tempo (foto 6_qualisys/qtm_vista_3d_superior_cameras).
+function telaQTM(p) {
+  const cl = [0.93, 0.94, 0.95], fer = [0.84, 0.87, 0.91], br = [0.98, 0.98, 0.98], pr = [0.045, 0.045, 0.05], gd = [0.30, 0.30, 0.31], gc = [0.72, 0.72, 0.72], cz = [0.42, 0.44, 0.47],
+    gr = [0.60, 0.62, 0.64], vm = [0.92, 0.22, 0.12], vd = [0.20, 0.90, 0.20], azu = [0.15, 0.50, 0.95], tb = [0.40, 0.40, 0.41], tl = [0.68, 0.74, 0.83], sel = [0.25, 0.55, 0.90],
+    terra = [0.45, 0.36, 0.30], w11 = [0.86, 0.89, 0.93];
+  p.ret(cl, 0, 0, 1, 1, 0);
+  // título, menus (File Edit View Play Capture AIM Skeleton Tools Window Help) e barra de ferramentas
+  p.traco(cz, 0.006, 0.977, 0.33, 0.977, 1.0, 1);
+  [0.022, 0.026, 0.028, 0.026, 0.045, 0.022, 0.05, 0.03, 0.045, 0.026].reduce((s, w) => { p.traco(pr, s, 0.935, s + w, 0.935, 0.9, 1); return s + w + 0.012; }, 0.004);
+  p.ret(fer, 0, 0.876, 1, 0.915, 1);
+  for (let i = 0; i < 52; i++) if (i % 9 !== 8) p.ret(i === 29 ? vm : (i > 34 && i % 4 === 0 ? azu : cz), 0.006 + i * 0.019, 0.886, 0.017 + i * 0.019, 0.906, 2);
+  p.ret(br, 0.345, 0.888, 0.415, 0.904, 2).ret(sel, 0.376, 0.884, 0.382, 0.908, 3);
+  // árvore do projeto (esquerda)
+  p.ret(br, 0, 0.15, 0.145, 0.872, 1).ret(fer, 0, 0.842, 0.145, 0.872, 2).traco(cz, 0.004, 0.857, 0.09, 0.857, 0.9, 3).ret(fer, 0, 0.80, 0.145, 0.826, 2).traco(pr, 0.004, 0.813, 0.03, 0.813, 0.9, 3);
+  p.ret(fer, 0.004, 0.185, 0.064, 0.212, 2).ret(fer, 0.072, 0.185, 0.132, 0.212, 2).traco(pr, 0.012, 0.198, 0.032, 0.198, 0.8, 3).traco(pr, 0.092, 0.198, 0.114, 0.198, 0.8, 3).traco(pr, 0.004, 0.165, 0.065, 0.165, 0.8, 2);
+  // vista 3D: fundo escuro, grade, cruz central, eixos e marcadores
+  const v0 = 0.152, v1 = 0.942, u0 = 0.272, u1 = 0.872, ox = 0.547, oy = 0.562, ds = 0.0255, dt = ds * 16 / 9;
+  p.ret(pr, v0, u0, v1, u1, 1);
+  for (let i = -15; i <= 15; i++) { const s = ox + i * ds; if (s > v0 + 0.045 && s < v1 - 0.004 && i) p.traco(gd, s, u0, s, u1, 0.3, 2); }
+  for (let j = -6; j <= 6; j++) { const t = oy + j * dt; if (t > u0 && t < u1 && j) p.traco(gd, v0 + 0.045, t, v1, t, 0.3, 2); }
+  p.traco(gc, ox, u0, ox, u1, 0.6, 3).traco(gc, v0 + 0.045, oy, v1, oy, 0.6, 3);
+  p.traco(vm, ox, oy, ox + 0.072, oy, 1.3, 4).traco(vm, ox + 0.066, oy + 0.016, ox + 0.082, oy, 1.2, 4).traco(vm, ox + 0.066, oy - 0.016, ox + 0.082, oy, 1.2, 4);
+  p.traco(vd, ox, oy, ox, oy + 0.20, 1.3, 4).traco(vd, ox - 0.009, oy + 0.185, ox, oy + 0.215, 1.2, 4).traco(vd, ox + 0.009, oy + 0.185, ox, oy + 0.215, 1.2, 4);
+  p.traco(vm, ox + 0.054, oy - 0.045, ox + 0.064, oy - 0.012, 0.7, 4).traco(vm, ox + 0.064, oy - 0.045, ox + 0.054, oy - 0.012, 0.7, 4); // "X"
+  p.traco(vd, ox + 0.008, oy + 0.158, ox + 0.018, oy + 0.170, 0.7, 4).traco(vd, ox + 0.008, oy + 0.182, ox + 0.018, oy + 0.170, 0.7, 4);  // "Y" deitado
+  p.ponto(azu, ox, oy, 1.6, 5).ponto(br, ox + 0.008, oy + 0.080, 1.0, 5);
+  for (const [a, b] of [[-0.022, 0.150], [-0.014, 0.128], [0.030, 0.034], [0.050, 0.038], [0.068, 0.043], [0.078, 0.043], [0.018, -0.046], [0.006, -0.130], [0.000, -0.190]]) p.ponto(vd, ox + a, oy + b, 0.8, 5);
+  for (const [a, b] of [[-0.172, 0.030], [0.208, -0.165], [0.070, -0.455]]) p.ret(br, ox + a - 0.008, oy + b - 0.014, ox + a + 0.008, oy + b + 0.014, 5).ret(pr, ox + a - 0.002, oy + b - 0.008, ox + a + 0.008, oy + b + 0.008, 6);
+  p.traco(vd, 0.77, 0.845, 0.92, 0.845, 1.1, 4).traco(br, 0.905, 0.300, 0.935, 0.300, 1.4, 4);
+  // barra vertical de ferramentas da vista (2D, seta, girar, mover, zoom…)
+  p.ret(tb, 0.160, 0.335, 0.192, 0.835, 3);
+  for (let i = 0; i < 9; i++) p.ret(gc, 0.168, 0.780 - i * 0.052, 0.184, 0.808 - i * 0.052, 4);
+  // painel da direita: trajetórias (lista escura com ícones verdes; uma selecionada)
+  p.ret(fer, 0.946, 0.272, 1, 0.872, 1).ret(pr, 0.952, 0.545, 1, 0.835, 2).ret(sel, 0.952, 0.735, 1, 0.752, 3).ret(pr, 0.952, 0.42, 1, 0.50, 2).ret(pr, 0.952, 0.30, 1, 0.37, 2);
+  for (let i = 0; i < 10; i++) p.ponto(vd, 0.975, 0.823 - i * 0.027, 0.9, 4);
+  p.traco(sel, 0.955, 0.853, 0.995, 0.853, 0.8, 2).traco(sel, 0.952, 0.515, 0.995, 0.515, 0.8, 2).traco(sel, 0.952, 0.385, 0.99, 0.385, 0.8, 2);
+  // mensagens, linha do tempo e barra de estado
+  p.ret(br, 0.152, 0.150, 1, 0.268, 1).traco(sel, 0.156, 0.253, 0.20, 0.253, 0.8, 2).ret(fer, 0.152, 0.152, 1, 0.172, 2);
+  for (let i = 0; i < 5; i++) p.traco(cz, 0.176, 0.238 - i * 0.019, 0.262, 0.238 - i * 0.019, 0.7, 3).traco(cz, 0.275, 0.238 - i * 0.019, 0.33 + (i === 1 ? 0.40 : (i % 3) * 0.05), 0.238 - i * 0.019, 0.7, 3);
+  p.ret(tl, 0, 0.088, 1, 0.148, 1);
+  for (let i = 0; i <= 45; i++) p.traco(pr, 0.004 + i * 0.0205, i % 5 ? 0.138 : 0.128, 0.004 + i * 0.0205, 0.147, 0.3, 2);
+  p.traco(pr, 0.002, 0.103, 0.33, 0.103, 0.8, 2).traco(cz, 0.002, 0.072, 0.07, 0.072, 0.8, 1);
+  // faixa do papel de parede e barra de tarefas clara do Windows 11
+  p.ret(terra, 0, 0.044, 1, 0.060, 1).ret(w11, 0, 0, 1, 0.044, 1).ret(azu, 0.006, 0.008, 0.024, 0.036, 2).traco(w11, 0.015, 0.008, 0.015, 0.036, 0.5, 3).traco(w11, 0.006, 0.022, 0.024, 0.022, 0.5, 3);
+  p.ret(terra, 0.036, 0.010, 0.056, 0.034, 2).ponto(pr, 0.078, 0.022, 2.4, 2).traco(pr, 0.955, 0.029, 0.975, 0.029, 0.7, 2).traco(pr, 0.955, 0.013, 0.978, 0.013, 0.7, 2);
+}
+
 // ---------------------------------------------------------------- notebook
 // Base sobre z = 0, centrada em XY; teclado para +Z, dobradiça no lado +Y; a tela abre op.angulo (110°).
-// pontos.porta = conector na lateral −X; pontos.portaRede = segunda porta (lado +X).
+// op.modelo:
+//  'precision' (padrão) — Dell Precision M6800 de 17,3" (416,7 × 270,6 × 33–37 mm fechado), o notebook das células:
+//     carcaça grafite, teclado com bloco numérico, grade de alto-falante e três botões acima do teclado, touchpad com
+//     botões em cima e em baixo, Windows 7 com o papel de parede "correlated SOLUTIONS" e o programa da Lynx;
+//  'qualisys' — Dell G15 (5530) de 15,6" (357,3 × 274,5 × 21–26 mm), o notebook da Qualisys: grafite, teclado
+//     retroiluminado laranja, "prateleira térmica" com saídas de ar atrás da dobradiça, selo da GeForce RTX e o QTM.
+// pontos.porta = conector na lateral −X (precision: USB; qualisys: RJ45); pontos.portaRede = RJ45 de verdade
+// (precision: face de trás, +Y; qualisys: o mesmo da lateral −X); pontos.energia = entrada da fonte (atrás);
+// pontos.tela = centro da tela.
 function notebook(op = {}) {
-  const W = op.larg || 340, D = op.prof || 240, hb = 18, ht = 6, ang = (op.angulo || 110) * Math.PI / 180;
-  const tampa = G.vazia(), teclas = G.vazia(), tela = G.vazia(), base = G.vazia(), portas = G.vazia();
-  G.juntar(base, T(G.caixaArred(W, D, hb, 8, 3), M.trans(0, 0, hb / 2)));
-  // teclado (6 fileiras) e touchpad
-  const kx = 17.5, ky = 16.5, gap = 2.2;
-  for (let l = 0; l < 6; l++) {
-    const n = 14, y = D / 2 - 30 - l * ky;
-    for (let k = 0; k < n; k++) {
-      let w = kx - gap, x = -W / 2 + 32 + k * kx;
-      if (l === 5 && k >= 4 && k <= 9) { if (k > 4) continue; w = kx * 6 - gap; }
-      G.juntar(teclas, caixaEm(x, y - ky + gap, hb - 0.2, x + w, y, hb + 1.2));
+  const q = op.modelo === 'qualisys';
+  const W = op.larg || (q ? 357 : 417), D = op.prof || (q ? 275 : 271), hb = q ? 18 : 26, ht = q ? 7 : 9;
+  const ang = (op.angulo || 110) * Math.PI / 180, rec = q ? 26 : 7; // rec = recuo da dobradiça (prateleira térmica do G15)
+  const yd = D / 2 - rec, Lt = D - rec - 1.5, x0 = -W / 2, y0 = -D / 2;
+  const base = G.vazia(), teclas = G.vazia(), leg = G.vazia(), luzTec = G.vazia(), grade = G.vazia(), tampa = G.vazia(), mold = G.vazia(),
+    portas = G.vazia(), azul = G.vazia(), prata = G.vazia(), selo = G.vazia(), selo2 = G.vazia(), pad = G.vazia();
+  G.juntar(base, T(G.caixaArred(W, D, hb, q ? 9 : 12, 4), M.trans(0, 0, hb / 2)));
+  // ---- teclado com bloco numérico: 6 fileiras (a de funções é mais baixa); u = passo das teclas
+  const u = q ? 17.9 : 18.2, un = q ? 15.6 : 17.4, vF = q ? 13 : 12, folga = 2.4, vao = q ? 3 : 5;
+  const kx = x0 + (q ? 12 : 34), ky = yd - (q ? 34.5 : 34), kx1 = kx + 15 * u + vao + 4 * un, ky1 = ky - vF - 5 * u;
+  const main = [Array(16).fill(15 / 16), [...Array(13).fill(1), 2], [1.5, ...Array(12).fill(1), 1.5], [1.75, ...Array(11).fill(1), 2.25],
+    [2.25, ...Array(10).fill(1), 2.75], [1.25, 1, 1, 1.25, 5.5, 1.25, 1.25, 5 / 6, 5 / 6, 5 / 6]];
+  const num = [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [2, 1, 1]];
+  const fileiras = (fs, xa, uu) => {
+    let y = ky;
+    fs.forEach((f, l) => {
+      const v = l ? u : vF; let x = xa;
+      for (const w of f) {
+        const a = w * uu;
+        G.juntar(teclas, caixaEm(x + folga / 2, y - v + folga / 2, hb - 0.3, x + a - folga / 2, y - folga / 2, hb + 1.3));
+        G.juntar(leg, quadZ(x + folga / 2 + 2, y - folga / 2 - (l ? 5.2 : 4.4), x + folga / 2 + 2 + Math.min(q ? 4.5 : 3.2, a - folga - 4), y - folga / 2 - 2.2, hb + 1.45));
+        x += a;
+      }
+      y -= v;
+    });
+  };
+  fileiras(main, kx, u); fileiras(num, kx + 15 * u + vao, un);
+  G.juntar(luzTec, caixaEm(kx - 1.2, ky1 - 1.2, hb, kx1 + 1.2, ky + 1.2, hb + 0.3)); // fundo do teclado (no G15, a luz laranja)
+  // ---- faixa acima do teclado: grade (alto-falantes no Precision, entrada de ar no G15), botões e liga/desliga
+  const furos = (xa, xb, ya, yb, nx, ny, r) => {
+    for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+      const x = xa + (xb - xa) * (i + 0.25 + (j % 2) * 0.5) / nx, y = ya + (yb - ya) * (j + 0.5) / ny;
+      G.juntar(portas, quadZ(x - r, y - r * 0.55, x + r, y + r * 0.55, hb + 0.45));
     }
+  };
+  if (q) {
+    G.juntar(grade, caixaEm(x0 + 18, yd - 29, hb, -x0 - 18, yd - 9, hb + 0.3)); furos(x0 + 20, -x0 - 20, yd - 28, yd - 10, 44, 4, 2.2);
+    G.juntar(prata, T(G.disco(6.2, hb + 0.6, 20, false, 5.3), M.trans(0, yd - 19, 0))); G.juntar(pad, T(G.disco(5.3, hb + 0.6, 20), M.trans(0, yd - 19, 0)));
+  } else {
+    G.juntar(grade, caixaEm(x0 + 76, yd - 27, hb, -x0 - 62, yd - 13, hb + 0.3)); furos(x0 + 78, -x0 - 64, yd - 26, yd - 14, 46, 3, 1.5);
+    for (let k = 0; k < 3; k++) G.juntar(prata, caixaEm(x0 + 40 + k * 9.5, yd - 23.5, hb, x0 + 46.5 + k * 9.5, yd - 17, hb + 0.6));
+    G.juntar(prata, T(G.cilindro(5, hb, hb + 0.6, 18), M.trans(-x0 - 44, yd - 20, 0)));
   }
-  G.juntar(teclas, caixaEm(-50, -D / 2 + 14, hb, 50, -D / 2 + 76, hb + 0.3));
-  // portas USB/rede na lateral
-  G.juntar(portas, caixaEm(-W / 2 - 0.3, 10, 5, -W / 2 + 4, 24, 10), caixaEm(-W / 2 - 0.3, 34, 4, -W / 2 + 4, 48, 13));
-  G.juntar(portas, caixaEm(W / 2 - 4, 20, 4, W / 2 + 0.3, 36, 13));
-  // tampa girando em torno da dobradiça (y = D/2, z = hb)
-  const trT = M.cadeia(M.trans(0, D / 2 - 4, hb), M.rotX(-ang));
-  G.juntar(tampa, G.transformar(T(G.caixaArred(W, D, ht, 8, 3), M.trans(0, -D / 2, ht / 2)), trT));
-  G.juntar(tampa, G.barra([-W / 2 + 30, D / 2 - 4, hb], [W / 2 - 30, D / 2 - 4, hb], 5, 12));
-  G.juntar(tela, G.transformar(caixaEm(-W / 2 + 12, -D + 14, -0.4, W / 2 - 12, -24, 0.2), trT));
+  // ---- apoio das mãos: touchpad (no Precision com três botões em cima e três em baixo), leitor digital, etiquetas
+  const cx = kx + 7.25 * u, pw = q ? 105 : 100, ph = q ? 62 : 54, py = ky1 - (q ? 10 : 20);
+  G.juntar(pad, caixaEm(cx - pw / 2, py - ph, hb, cx + pw / 2, py, hb + 0.3));
+  if (q) {
+    // selos no canto: GeForce RTX (verde) e Intel (azul)
+    G.juntar(selo2, caixaEm(x0 + 14, y0 + 16, hb, x0 + 28, y0 + 26, hb + 0.25)); G.juntar(selo, caixaEm(x0 + 32, y0 + 15, hb, x0 + 44, y0 + 27, hb + 0.25));
+  } else {
+    for (const yb of [py + 2, py - ph - 13]) for (let k = 0; k < 3; k++) G.juntar(teclas, caixaEm(cx - pw / 2 + k * pw / 3 + 0.6, yb, hb, cx - pw / 2 + (k + 1) * pw / 3 - 0.6, yb + 11, hb + 0.8));
+    G.juntar(azul, T(G.cilindro(3, hb, hb + 2.1, 10), M.trans(kx + 6.75 * u, ky - vF - 3 * u, 0))); // pino apontador entre G, H e B
+    G.juntar(teclas, caixaEm(cx + pw / 2 + 24, py - 40, hb, cx + pw / 2 + 42, py - 20, hb + 0.3));  // leitor de digitais
+    const lm = letreiro('DELL PRECISION M6800', 2.3, 0.12, 0.17);
+    G.juntar(leg, T(lm.g, M.trans(x0 + 10, ky1 - 9, hb)));
+    G.juntar(selo, caixaEm(-x0 - 62, y0 + 16, hb, -x0 - 46, y0 + 30, hb + 0.25)); G.juntar(prata, quadZ(-x0 - 59, y0 + 19, -x0 - 49, y0 + 24, hb + 0.4)); // selo Intel Core i7
+  }
+  // ---- portas e saídas de ar (caixas pretas rentes às faces)
+  const lado = (s, ya, za, yb, zb, g = portas) => G.juntar(g, caixaEm(s < 0 ? x0 - 0.3 : -x0 - 3, ya, za, s < 0 ? x0 + 3 : -x0 + 0.3, yb, zb));
+  const tras = (xa, za, xb, zb, g = portas) => G.juntar(g, caixaEm(xa, D / 2 - 3, za, xb, D / 2 + 0.3, zb));
+  let porta, portaRede, energia;
+  if (q) {
+    lado(-1, 52, 3.5, 68, 15); lado(-1, 30, 6, 37, 13); lado(1, 50, 5.5, 64, 12); lado(1, 30, 5.5, 44, 12);     // RJ45 e fone; 2 USB-A
+    for (const s of [-1, 1]) { lado(s, yd + 3, 4, D / 2 - 4, hb - 3); tras(s * 62, 4, s * 166, hb - 3); }         // saídas de ar da prateleira
+    for (let k = 1; k < 4; k++) for (const s of [-1, 1]) G.juntar(grade, caixaEm(Math.min(s * 62, s * 166), D / 2 - 2, 4 + k * (hb - 7) / 4 - 0.5, Math.max(s * 62, s * 166), D / 2 + 0.6, 4 + k * (hb - 7) / 4 + 0.5));
+    G.juntar(portas, T(G.cilindro(3.6, 0, 0.4, 14), M.trans(-40, D / 2, 9.5), M.rotX(-Math.PI / 2))); tras(-22, 6.5, -6, 12.5); tras(8, 7.5, 17, 11); tras(28, 6.5, 42, 12.5); // fonte, HDMI, USB-C, USB-A
+    porta = portaRede = [x0, 60, 9.2]; energia = [-40, D / 2, 9.5];
+  } else {
+    lado(-1, 60, 5, 112, 20); lado(-1, 12, 9, 26, 15); lado(-1, -8, 9, 6, 15); lado(-1, -62, 10, -34, 12.5);     // saída de ar, 2 USB 3.0, leitor de cartão
+    G.juntar(azul, caixaEm(x0 - 0.4, 13.5, 11.2, x0 + 2, 24.5, 12.8), caixaEm(x0 - 0.4, -6.5, 11.2, x0 + 2, 4.5, 12.8));
+    G.juntar(portas, T(G.cilindro(2.6, 0, 0.4, 12), M.trans(x0, -78, 12), M.rotY(-Math.PI / 2)), T(G.cilindro(2.6, 0, 0.4, 12), M.trans(x0, -90, 12), M.rotY(-Math.PI / 2))); // fone e microfone
+    lado(1, 60, 5, 112, 20); lado(1, 30, 9, 44, 15); lado(1, 12, 9, 26, 15); lado(1, -118, 9.5, -2, 10.3); lado(1, -70, 11.5, -58, 13.5); // ar, 2 USB, gaveta do DVD
+    tras(x0 + 12, 5, x0 + 86, 20); tras(-x0 - 86, 5, -x0 - 12, 20);                                              // saídas de ar de trás
+    tras(92, 6, 108, 19); tras(52, 8, 84, 18, azul); tras(30, 9, 44, 15); tras(6, 9, 22, 15);                     // RJ45, VGA (azul), eSATA, HDMI
+    G.juntar(portas, T(G.cilindro(4.2, 0, 0.4, 14), M.trans(-20, D / 2, 12), M.rotX(-Math.PI / 2)));
+    porta = [x0, 19, 12]; portaRede = [100, D / 2, 12.5]; energia = [-20, D / 2, 12];
+  }
+  // ---- tampa girando na dobradiça (y = yd, z = hb). Coordenadas da tampa: a = direita, b = da dobradiça para a
+  // ponta, c = para fora da tela (c = 0 é a face da tela; c = −ht, as costas)
+  const trT = M.cadeia(M.trans(0, yd, hb), M.rotX(-ang)), mT = M.mul(trT, [1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1]);
+  const mC = M.mul(mT, [-1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, 0, 0, Lt / 2, -ht, 1]); // costas: texto legível por quem olha de trás
+  G.juntar(tampa, G.transformar(T(G.caixaArred(W, Lt, ht, q ? 8 : 11, 4), M.trans(0, Lt / 2, -ht / 2)), mT));
+  G.juntar(tampa, G.barra([x0 + (q ? 42 : 28), yd, hb], [-x0 - (q ? 42 : 28), yd, hb], q ? 5 : 6, 12));
+  G.juntar(mold, G.transformar(T(G.caixaArred(W - 3, Lt - 3, 0.5, q ? 6.5 : 9.5, 4), M.trans(0, Lt / 2, -0.15)), mT));
+  const sw = q ? 344.2 : 383, sh = q ? 193.6 : 215.4, b0 = Lt - (q ? 9 : 14) - sh; // tela 16:9 de 15,6" / 17,3"
+  const p = pintor(sw, sh, b0, 0.3);
+  (q ? telaQTM : telaLynx)(p);
+  const lf = letreiro('DELL', q ? 4 : 6, 0.12, 0.2), lc = letreiro('DELL', 11, 0.3, 0.2);
+  G.juntar(prata, G.transformar(T(lf.g, M.trans(-lf.larg / 2, b0 / 2 - (q ? 0 : 3), 0.1)), mT));                           // "DELL" sob a tela
+  G.juntar(prata, G.transformar(G.juntar(G.disco(21, 0.3, 40, false, 18.4), T(lc.g, M.trans(-lc.larg / 2, -5.5, 0))), mC)); // logo nas costas
+  G.juntar(pad, G.transformar(T(G.disco(2.2, 0.3, 12), M.trans(0, Lt - (q ? 4.5 : 7), 0)), mT));                           // webcam
+  const corBase = q ? [0.19, 0.195, 0.21] : [0.15, 0.15, 0.155];
+  const partes = [P('base', matE('plasticoGrafite', { cor: corBase }), base), P('teclas', matE('plasticoPreto', { cor: [0.045, 0.045, 0.05] }), teclas),
+    P('fundo do teclado', q ? { cor: [0.30, 0.12, 0.02], metal: 0, rug: 0.5, emissivo: [0.55, 0.23, 0.03] } : matE('plasticoGrafite', { cor: [0.20, 0.20, 0.21], rug: 0.6 }), luzTec),
+    P('legendas', q ? { cor: [0.5, 0.25, 0.05], metal: 0, rug: 0.5, emissivo: [0.80, 0.42, 0.08] } : { cor: [0.66, 0.66, 0.66], metal: 0, rug: 0.6 }, leg),
+    P('grade', matE('plasticoGrafite', { cor: q ? [0.09, 0.09, 0.10] : [0.15, 0.15, 0.155], rug: 0.7 }), grade), P('touchpad', matE('plasticoGrafite', { cor: q ? [0.10, 0.105, 0.115] : [0.085, 0.085, 0.09], rug: 0.35 }), pad),
+    P('tampa', q ? matE('plasticoGrafite', { cor: [0.25, 0.255, 0.27], rug: 0.5 }) : matE('plasticoGrafite', { cor: [0.30, 0.30, 0.32], metal: 0.3, rug: 0.45 }), tampa),
+    P('moldura da tela', matE('plasticoPreto', { cor: [0.025, 0.025, 0.028], rug: 0.4 }), mold), P('portas', matE('plasticoPreto', { cor: [0.01, 0.01, 0.01] }), portas),
+    P('logos e botões', matE('cromado', { cor: [0.72, 0.73, 0.75], rug: 0.35 }), prata), P('selo Intel', { cor: [0.05, 0.35, 0.75], metal: 0, rug: 0.4 }, selo),
+    ...p.partes('tela', mT)];
+  if (azul.pos.length) partes.push(P('azul (USB 3.0, VGA, pino)', { cor: [0.08, 0.20, 0.62], metal: 0, rug: 0.45 }, azul));
+  if (selo2.pos.length) partes.push(P('selo GeForce RTX', { cor: [0.46, 0.72, 0.02], metal: 0, rug: 0.4 }, selo2));
+  const tela = [0, b0 + sh / 2, 0.3];
   return {
-    partes: [P('base', matE('plasticoGrafite'), base), P('teclas', matE('plasticoPreto'), teclas), P('tampa', matE('plasticoGrafite', { cor: [0.12, 0.12, 0.13] }), tampa),
-      P('tela', { cor: [0.20, 0.27, 0.36], metal: 0, rug: 0.15, emissivo: [0.10, 0.14, 0.20] }, tela), P('portas', matE('plasticoPreto', { cor: [0.02, 0.02, 0.02] }), portas)],
-    pontos: { porta: [-W / 2, 17, 7.5], portaRede: [W / 2, 28, 8.5] },
+    partes,
+    pontos: { porta, portaRede, energia, tela: [mT[0] * tela[0] + mT[4] * tela[1] + mT[8] * tela[2] + mT[12], mT[1] * tela[0] + mT[5] * tela[1] + mT[9] * tela[2] + mT[13], mT[2] * tela[0] + mT[6] * tela[1] + mT[10] * tela[2] + mT[14]] },
   };
 }
 
@@ -737,65 +972,157 @@ function syncUnit(op = {}) {
   };
 }
 
-// ---------------------------------------------------------------- base de aquisição das células
-// Caixa pequena apoiada em z = 0; bornes verdes (parafusados) na face −X; USB e LEDs na face +X.
-// pontos.entradas = [2 pontos nos bornes (face −X)]; pontos.saida = USB (face +X).
+// ---------------------------------------------------------------- aquisição das células: Lynx ADS1800
+// Gabinete de alumínio extrudado preto de 35 × 140 × 205 mm (alt. × larg. × prof., brochura da Lynx), com molduras
+// pretas arredondadas nas duas pontas. Apoiado em z = 0, centrado em XY, comprimento ao longo de X.
+// Face −X = painel frontal branco: 8 canais em bornes verdes de 4 vias (E, +, −, blindagem) — 1 a 4 em cima e 5 a 8
+// em baixo, o canal 1 do lado +Y —, um bloco auxiliar de 8 vias (−V +V ⏚ A B R +S −S), "ADS1800", o LED ACT e o
+// logo da LYNX. Os fios entram nos bornes por baixo (bornes deitados, parafusos virados para a frente).
+// Face +X = painel traseiro: terra, entrada da fonte (11–30 VCC), dois LEDs, botão SW, conector de E/S de 12 vias,
+// SYNC e a rede (LAN, RJ45).
+// pontos.entradas = [canal 6, canal 7] (meio da boca dos bornes, por baixo); pontos.terminais = os 4 bornes de cada
+// um ([E, +, −, blindagem]); pontos.saida = RJ45 da rede (face +X); pontos.alimentacao = entrada da fonte (face +X);
+// pontos.frente = direção para fora do painel dos bornes (unitário).
 function baseCelulas(op = {}) {
-  const A = op.comp || 180, B = op.larg || 120, H = op.alt || 60;
-  const caixa = G.vazia(), tampa = G.vazia(), borne = G.vazia(), paraf = G.vazia(), usb = G.vazia(), ledV = G.vazia(), ledA = G.vazia(), eti = G.vazia();
-  G.juntar(caixa, T(G.caixaArred(A, B, H - 6, 6, 3), M.trans(0, 0, (H - 6) / 2)));
-  G.juntar(tampa, T(G.caixaArred(A - 4, B - 4, 6, 5, 3), M.trans(0, 0, H - 3)));
-  for (const [x, y] of [[-A / 2 + 10, -B / 2 + 10], [A / 2 - 10, -B / 2 + 10], [-A / 2 + 10, B / 2 - 10], [A / 2 - 10, B / 2 - 10]]) G.juntar(paraf, T(G.disco(2.5, 0, 10), M.trans(x, y, H + 0.2)));
-  // 2 blocos de bornes de 5 vias (4 fios + terra) saindo da face −X
-  const entradas = [];
-  for (const yc of [-B / 4, B / 4]) {
-    G.juntar(borne, caixaEm(-A / 2 - 16, yc - 22, 8, -A / 2, yc + 22, 26));
-    for (let k = 0; k < 5; k++) {
-      const y = yc - 17.6 + k * 8.8;
-      G.juntar(paraf, T(G.cilindro(2.6, 0, 1.5, 10), M.trans(-A / 2 - 8, y, 26)));
-      G.juntar(usb, caixaEm(-A / 2 - 16.3, y - 2.5, 11, -A / 2 - 15.9, y + 2.5, 17));
-    }
-    entradas.push([-A / 2 - 16, yc, 14]);
+  const A = op.comp || 205, B = op.larg || 140, H = op.alt || 35, em = 9; // em = espessura das molduras das pontas
+  const corpo = G.vazia(), mold = G.vazia(), painel = G.vazia(), borne = G.vazia(), paraf = G.vazia(), escuro = G.vazia(), tarja = G.vazia(), txt = G.vazia(), azul = G.vazia(),
+    brancoLogo = G.vazia(), preto = G.vazia(), metal = G.vazia(), ledV = G.vazia(), ledAm = G.vazia(), eti = G.vazia(), barras = G.vazia();
+  // perfil extrudado ao longo de X: cantos arredondados, aletas nas laterais e ressaltos nas bordas do tampo
+  const eixoX = [0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1]; // (x, y, z) local -> (Y, Z, X)
+  const Lc = A - 2 * em + 2, Bc = B - 6, z0 = 1, z1 = H - 1.5;
+  G.juntar(corpo, T(G.caixaArred(Bc, z1 - z0, Lc, 4, 3), M.trans(0, 0, (z0 + z1) / 2), eixoX));
+  for (const s of [-1, 1]) {
+    for (let k = 0; k < 5; k++) G.juntar(corpo, caixaEm(-Lc / 2, s * Bc / 2 - 0.6, 7 + k * 5.2 - 0.9, Lc / 2, s * Bc / 2 + 1.1, 7 + k * 5.2 + 0.9));
+    G.juntar(corpo, caixaEm(-Lc / 2, Math.min(s * (Bc / 2 - 3), s * (Bc / 2 - 12)), z1 - 0.5, Lc / 2, Math.max(s * (Bc / 2 - 3), s * (Bc / 2 - 12)), z1 + 1));
   }
-  G.juntar(usb, caixaEm(A / 2 - 0.4, -6, 20, A / 2 + 0.4, 6, 25));
-  G.juntar(ledV, T(G.disco(2, 0, 10), M.trans(A / 2 - 20, -B / 2 + 18, H + 0.4)));
-  G.juntar(ledA, T(G.disco(2, 0, 10), M.trans(A / 2 - 20, -B / 2 + 28, H + 0.4)));
-  G.juntar(eti, caixaEm(-50, -25, H, 30, 25, H + 0.4));
+  // etiquetas brancas sobre o tampo (patrimônio com código de barras perto do fundo; outra perto da frente)
+  G.juntar(eti, caixaEm(A / 2 - 78, -8, z1, A / 2 - 42, 30, z1 + 0.25), caixaEm(-A / 2 + 30, 28, z1, -A / 2 + 48, 52, z1 + 0.25));
+  for (let k = 0; k < 9; k++) G.juntar(barras, quadZ(A / 2 - 62, -4 + k * 3.4, A / 2 - 50, -4 + k * 3.4 + (k % 3 ? 1.2 : 2), z1 + 0.45));
+  // ---- as duas pontas, em coordenadas do painel: a = direita de quem olha o painel, b = para cima, c = para fora
+  // (c = 0 é a face da moldura; a chapa do painel fica 2 mm para dentro)
+  const face = (s) => [0, s, 0, 0, 0, 0, 1, 0, s, 0, 0, 0, s * A / 2, 0, 0, 1]; // s = −1: frente (face −X); +1: traseira (face +X)
+  const rc = 9, le = 10, cp = -1.6, ai = B / 2 - le; // raio dos cantos, largura das "orelhas", face da chapa, meia-largura da chapa
+  const arco = (cx, cy, a0) => Array.from({ length: 7 }, (_, k) => [cx + rc * Math.cos(a0 + Math.PI / 2 * k / 6), cy + rc * Math.sin(a0 + Math.PI / 2 * k / 6)]);
+  const orelhaD = [[ai, 0], ...arco(B / 2 - rc, rc, -Math.PI / 2), ...arco(B / 2 - rc, H - rc, 0), [ai, H]];
+  const orelhaE = orelhaD.map(([a, b]) => [-a, b]).reverse();
+  const moldura = G.juntar(G.vazia(), T(G.caixaArred(B, H, em - 2, rc, 6), M.trans(0, H / 2, -2 - (em - 2) / 2)), G.extrusao(orelhaD, -2, 0), G.extrusao(orelhaE, -2, 0),
+    caixaEm(-ai, 0, -2, ai, 3, 0), caixaEm(-ai, H - 3, -2, ai, H, 0));
+  const chapa = caixaEm(-ai, 3, -2, ai, H - 3, cp);
+  const tampas = G.juntar(G.vazia(), T(G.cilindro(3.6, 0, 0.5, 18), M.trans(B / 2 - le / 2 - 0.5, H / 2, 0)), T(G.cilindro(3.6, 0, 0.5, 18), M.trans(-B / 2 + le / 2 + 0.5, H / 2, 0)));
+  for (const s of [-1, 1]) { G.juntar(mold, G.transformar(moldura, face(s))); G.juntar(painel, G.transformar(chapa, face(s))); G.juntar(preto, G.transformar(tampas, face(s))); }
+  // ---- painel frontal
+  const F = { borne: G.vazia(), paraf: G.vazia(), escuro: G.vazia(), tarja: G.vazia(), txt: G.vazia(), azul: G.vazia(), branco: G.vazia(), preto: G.vazia() };
+  const passo = 3.81, wb = 17.1, pb = 17.3, aC = -51, zInf = 6, zSup = 16.4, hBorne = 10, aAux = 22.8;
+  const letra = (g, s, a, b, h, tr = 0.17) => { const l = letreiro(s, h, 0.25, tr); G.juntar(g, T(l.g, M.trans(a - l.larg / 2, b, cp + 0.1))); };
+  // bloco de n vias começando em a0, base em zb: corpo com os parafusos na frente e, em baixo, o degrau das bocas dos fios
+  const bloco = (a0, zb, n, larg) => {
+    G.juntar(F.borne, caixaEm(a0, zb + 3.6, cp, a0 + larg, zb + hBorne, 7.4), caixaEm(a0, zb, cp, a0 + larg, zb + 3.6, 8.8));
+    const ps = [];
+    for (let k = 0; k < n; k++) {
+      const a = a0 + larg / 2 + (k - (n - 1) / 2) * passo, ang = (k * 2.4 + a0 * 0.37 + zb) % Math.PI;
+      G.juntar(F.paraf, T(G.cilindro(1.45, 7.4, 7.65, 10), M.trans(a, zb + 6.9, 0)));
+      G.juntar(F.escuro, T(G.caixa(2.5, 0.45, 0.3), M.trans(a, zb + 6.9, 7.7), M.rotZ(ang)), caixaEm(a - 1.1, zb + 0.9, 8.8, a + 1.1, zb + 2.7, 8.95));
+      ps.push([a, zb, 5]);
+    }
+    return ps;
+  };
+  const tarjaTxt = (a0, a1, b0, b1, itens, h) => { // tarja cinza com as legendas claras
+    G.juntar(F.tarja, caixaEm(a0, b0, cp, a1, b1, cp + 0.15));
+    for (const [s, a] of itens) letra(F.txt, s, a, (b0 + b1 - h) / 2, h);
+  };
+  const terminais = [];
+  for (let lin = 0; lin < 2; lin++) for (let k = 0; k < 4; k++) {
+    const a0 = aC + k * pb, zb = lin ? zInf : zSup, ps = bloco(a0, zb, 4, wb), canal = lin * 4 + k + 1;
+    const [b0, b1] = lin ? [3.5, 5.7] : [zSup + hBorne + 0.9, zSup + hBorne + 4.1];
+    tarjaTxt(a0 + 0.9, a0 + wb - 0.9, b0, b1, ['E', '+', '-', '#'].map((s, i) => [s, ps[i][0]]), lin ? 1.7 : 2.3);
+    if (canal === 6 || canal === 7) terminais.push(ps);
+  }
+  const psAux = bloco(aAux, zSup, 8, 33);
+  tarjaTxt(aAux + 0.6, aAux + 32.4, zSup + hBorne + 0.9, zSup + hBorne + 4.1, ['-V', '+V', '#', 'A', 'B', 'R', '+S', '-S'].map((s, i) => [s, psAux[i][0]]), 1.9);
+  for (const [s, a, zb] of [['1', aC - 3.3, zSup], ['5', aC - 3.3, zInf], ['4', aC + 4 * pb + 1.9, zSup], ['8', aC + 4 * pb + 1.9, zInf]]) tarjaTxt(a - 1.7, a + 1.7, zb + 2.8, zb + 7.2, [[s, a]], 2.6);
+  // "ADS1800" (azul, inclinado), LED ACT, logo LYNX (disco azul com duas faixas brancas) e o furinho ao lado
+  const lA = letreiro('ADS1800', 3, 0.25, 0.21);
+  G.juntar(F.azul, T(lA.g, M.trans(24.6, 10.4, cp), [1, 0, 0, 0, 0.2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
+  tarjaTxt(45.4, 55, 9.9, 13.9, [['ACT', 51.3]], 2.1);
+  G.juntar(F.preto, T(G.disco(1.05, cp + 0.3, 12), M.trans(47.2, 11.9, 0)), T(G.disco(0.45, cp + 0.15, 8), M.trans(22.4, 12, 0)));
+  G.juntar(F.azul, T(G.disco(2.7, cp + 0.15, 20), M.trans(25.6, 6.3, 0)));
+  G.juntar(F.branco, caixaEm(22.7, 5.9, cp, 28.5, 6.4, cp + 0.3), caixaEm(23, 4.7, cp, 28.2, 5.2, cp + 0.3));
+  const lL = letreiro('LYNX', 2.6, 0.25, 0.2);
+  G.juntar(F.azul, T(lL.g, M.trans(29.6, 4.9, cp), M.esc(1.3, 1, 1)));
+  const mF = face(-1);
+  G.juntar(borne, G.transformar(F.borne, mF)); G.juntar(paraf, G.transformar(F.paraf, mF)); G.juntar(escuro, G.transformar(F.escuro, mF)); G.juntar(tarja, G.transformar(F.tarja, mF));
+  G.juntar(txt, G.transformar(F.txt, mF)); G.juntar(azul, G.transformar(F.azul, mF)); G.juntar(brancoLogo, G.transformar(F.branco, mF)); G.juntar(preto, G.transformar(F.preto, mF));
+  // ---- painel traseiro (brochura): terra, fonte, 2 LEDs, SW, E/S de 12 vias, SYNC, LAN
+  const R = { preto: G.vazia(), metal: G.vazia(), txt: G.vazia(), ledV: G.vazia(), ledAm: G.vazia() };
+  const anel = (g, a, b, r, e = 0.3) => G.juntar(g, T(G.disco(r, cp + 0.15, 14, false, r - e), M.trans(a, b, 0)));
+  const risco = (g, a0, b0, a1, b1, e = 0.3) => G.juntar(g, T(G.caixa(Math.hypot(a1 - a0, b1 - b0) + e, e, 0.3), M.trans((a0 + a1) / 2, (b0 + b1) / 2, cp), M.rotZ(Math.atan2(b1 - b0, a1 - a0))));
+  // parafuso de terra (com o símbolo ao lado) e entrada da fonte (conector circular metálico com porca)
+  G.juntar(R.metal, T(G.cilindro(3.6, cp, cp + 1.6, 16), M.trans(-48, 25.6, 0)), T(G.extrusao(hexa(6.3), cp, cp + 2), M.trans(-40, 15.3, 0)), T(G.cilindro(4.7, cp + 2, cp + 7.5, 18), M.trans(-40, 15.3, 0)));
+  G.juntar(R.preto, T(G.disco(3.1, cp + 7.55, 14), M.trans(-40, 15.3, 0)), T(G.caixa(4.6, 0.7, 0.2), M.trans(-48, 25.6, cp + 1.7), M.rotZ(0.6)), T(G.caixa(4.6, 0.7, 0.2), M.trans(-48, 25.6, cp + 1.7), M.rotZ(0.6 + Math.PI / 2)));
+  risco(R.txt, -56, 25.2, -52.6, 25.2); risco(R.txt, -54.3, 25.2, -54.3, 27.6); for (let k = 0; k < 3; k++) risco(R.txt, -55.6 + k * 1.2, 23.4, -54.8 + k * 1.2, 25.2);
+  letra(R.txt, 'POWER IN', -52.5, 12.8, 1.2); letra(R.txt, '11-30VDC', -52.5, 10.9, 1.2); letra(R.txt, 'MAX 15W', -52.5, 9.0, 1.2);
+  risco(R.txt, -56, 6, -52.5, 6); risco(R.txt, -49.5, 6, -46, 6); anel(R.txt, -51, 6, 1.5); G.juntar(R.txt, T(G.disco(0.6, cp + 0.15, 8), M.trans(-51, 6, 0)));
+  // LEDs (acesos em verde nas fotos), com os ícones de ligado e de relógio em baixo; botão SW embutido
+  for (const a of [-25, -19.8]) { G.juntar(R.ledV, T(G.cilindro(1.3, cp, cp + 0.5, 12), M.trans(a, 15.6, 0))); anel(R.txt, a, 10.6, 1.5); risco(R.txt, a, 10.6, a, a < -22 ? 12.4 : 11.7); }
+  risco(R.txt, -19.8, 10.6, -18.9, 10.6);
+  G.juntar(R.preto, T(G.disco(1.0, cp + 0.15, 10), M.trans(-12.2, 13.2, 0))); anel(R.txt, -12.2, 8.6, 1.5); letra(R.txt, 'SW', -12.2, 5.2, 1.1);
+  // conector de E/S de 12 vias (2 × 6, com a trava em cima), "IOIO" e a numeração dos pinos
+  G.juntar(R.preto, caixaEm(-8.4, 12, cp, 12.6, 18.7, cp + 1.2), caixaEm(0.2, 18.7, cp, 4.4, 21.4, cp + 1.2));
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) G.juntar(R.metal, quadZ(-7.4 + i * 3.4, 12.8 + j * 3, -5 + i * 3.4, 14.9 + j * 3, cp + 1.4));
+  anel(R.txt, 2.3, 24.6, 1.2, 0.25); risco(R.txt, -0.6, 23.6, 5.2, 23.6); risco(R.txt, -0.6, 25.6, 5.2, 25.6); risco(R.txt, -0.6, 23.6, -0.6, 25.6); risco(R.txt, 5.2, 23.6, 5.2, 25.6);
+  letra(R.txt, '12', -5.5, 19.9, 1.5); letra(R.txt, '7', 9.5, 19.9, 1.5); letra(R.txt, '6', -5.5, 9.3, 1.5); letra(R.txt, '1', 9.5, 9.3, 1.5);
+  // SYNC (tomada modular preta) e LAN (RJ45 blindado com dois LEDs)
+  G.juntar(R.preto, caixaEm(15.2, 12.8, cp, 28.8, 25.4, cp + 0.6), caixaEm(33.4, 14.6, cp + 0.9, 46.4, 22.4, cp + 1.1));
+  G.juntar(R.metal, caixaEm(17.5, 14.6, cp + 0.6, 26.5, 22, cp + 0.8), caixaEm(31.5, 13.2, cp, 48.3, 25, cp + 0.9));
+  letra(R.txt, 'SYNC', 19.5, 26.6, 1.7); for (const [a, b] of [[25.2, 27.6], [27.4, 29.3], [28.6, 27], [26.4, 29.9]]) anel(R.txt, a, b, 0.9, 0.2);
+  letra(R.txt, 'LAN', 34.4, 26.4, 1.7); G.juntar(R.txt, caixaEm(40.2, 29.2, cp, 41.6, 30.4, cp + 0.15), caixaEm(37.6, 26.3, cp, 39, 27.5, cp + 0.15), caixaEm(42.8, 26.3, cp, 44.2, 27.5, cp + 0.15));
+  risco(R.txt, 38.3, 28.3, 43.5, 28.3, 0.25); risco(R.txt, 40.9, 28.3, 40.9, 29.2, 0.25); risco(R.txt, 38.3, 27.5, 38.3, 28.3, 0.25); risco(R.txt, 43.5, 27.5, 43.5, 28.3, 0.25);
+  G.juntar(R.ledV, caixaEm(32.6, 23, cp + 0.9, 34.8, 24.4, cp + 1.1)); G.juntar(R.ledAm, caixaEm(45, 23, cp + 0.9, 47.2, 24.4, cp + 1.1));
+  risco(R.txt, 50.4, 14.4, 54.4, 14.4); risco(R.txt, 50.4, 14.4, 52.4, 17.8); risco(R.txt, 54.4, 14.4, 52.4, 17.8); risco(R.txt, 52.4, 15.4, 52.4, 16.6, 0.25); // triângulo de atenção
+  for (const [a0, a1] of [[4, 11], [12, 25], [26, 37], [38, 42], [44.5, 46], [47, 55]]) risco(R.txt, a0, 7.2, a1, 7.2, 0.5);                                  // "Lynx Tecnologia Eletrônica Ltda. …"
+  const mR = face(1);
+  G.juntar(preto, G.transformar(R.preto, mR)); G.juntar(metal, G.transformar(R.metal, mR)); G.juntar(ledV, G.transformar(R.ledV, mR)); G.juntar(ledAm, G.transformar(R.ledAm, mR));
+  const txtTras = G.transformar(R.txt, mR);
+  const pF = (q) => [-A / 2 - q[2], -q[0], q[1]]; // ponto do painel frontal (a, b, c) -> local
   return {
-    partes: [P('caixa', matE('plasticoGrafite', { cor: [0.22, 0.23, 0.25] }), caixa), P('tampa', matE('plasticoPreto'), tampa), P('bornes', matE('verdeBorne'), borne),
-      P('parafusos', matE('cromado'), paraf), P('furos', matE('plasticoPreto', { cor: [0.01, 0.01, 0.01] }), usb), P('etiqueta', matE('textoClaro'), eti),
-      P('LED verde', { cor: [0.2, 0.9, 0.3], metal: 0, rug: 0.3, emissivo: [0.1, 0.7, 0.2] }, ledV), P('LED âmbar', { cor: [1, 0.6, 0.1], metal: 0, rug: 0.3, emissivo: [0.6, 0.3, 0.02] }, ledA)],
-    pontos: { entradas, saida: [A / 2, 0, 22.5] },
+    partes: [P('gabinete', matE('plasticoPreto', { cor: [0.045, 0.045, 0.05], metal: 0.6, rug: 0.42 }), corpo), P('molduras', matE('plasticoPreto', { cor: [0.05, 0.05, 0.055], rug: 0.6 }), mold),
+      P('painéis', { cor: [0.90, 0.90, 0.89], metal: 0, rug: 0.5 }, painel), P('bornes', matE('verdeBorne', { cor: [0.36, 0.70, 0.44] }), borne), P('parafusos', { cor: [0.84, 0.84, 0.82], metal: 0.35, rug: 0.5 }, paraf),
+      P('fendas e bocas', matE('plasticoPreto', { cor: [0.03, 0.05, 0.035] }), escuro), P('tarjas', { cor: [0.36, 0.38, 0.38], metal: 0, rug: 0.6 }, tarja), P('legendas', matE('textoClaro'), txt),
+      P('ADS1800 e logo', { cor: [0.10, 0.24, 0.62], metal: 0, rug: 0.5 }, azul), P('faixas do logo', matE('textoClaro', { cor: [0.95, 0.95, 0.95] }), brancoLogo),
+      P('conectores pretos', matE('plasticoPreto', { cor: [0.02, 0.02, 0.022] }), preto), P('conectores metálicos', matE('cromado', { cor: [0.72, 0.73, 0.74], rug: 0.35 }), metal),
+      P('legendas de trás', matE('plasticoPreto', { cor: [0.08, 0.08, 0.09] }), txtTras), P('LEDs verdes', { cor: [0.2, 0.9, 0.3], metal: 0, rug: 0.3, emissivo: [0.1, 0.7, 0.2] }, ledV),
+      P('LED âmbar', { cor: [0.8, 0.6, 0.1], metal: 0, rug: 0.3, emissivo: [0.3, 0.2, 0.02] }, ledAm), P('etiquetas', matE('textoClaro', { cor: [0.92, 0.92, 0.90] }), eti),
+      P('código de barras', matE('plasticoPreto'), barras)],
+    pontos: { entradas: terminais.map((ps) => pF([(ps[1][0] + ps[2][0]) / 2, ps[0][1], ps[0][2]])), terminais: terminais.map((ps) => ps.map(pF)),
+      saida: [A / 2, 39.9, 19.1], alimentacao: [A / 2 + 6, -40, 15.3], frente: [-1, 0, 0] },
   };
 }
 
-// ---------------------------------------------------------------- mesa/gabinete cinza
-// Gabinete de chapa cinza-clara com tampo de laminado mais espesso e pés niveladores. Origem no chão,
-// no centro; frente em −Y. pontos.tampo = centro do tampo.
+// ---------------------------------------------------------------- bancada cinza dos computadores
+// Mesa de tampo cinza-claro com os cantos arredondados e fita de borda escura, sobre dois pés-painel cinza (um em
+// cada ponta, recuados) ligados por um painel traseiro alto e uma travessa na frente: por baixo fica aberta.
+// op.comp (comprimento, X), op.larg (profundidade, Y; padrão 600), op.altura (850). Origem no chão, no centro;
+// frente (lado do operador) em −Y. pontos.tampo = centro do tampo; pontos.vao = [mín, máx] do espaço livre por baixo.
 function mesaApoio(op = {}) {
-  const A = op.comp || 1000, B = op.larg || 600, H = op.altura || 850, et = 30;
-  const tampo = G.vazia(), corpo = G.vazia(), frisos = G.vazia(), pes = G.vazia(), puxa = G.vazia();
-  G.juntar(tampo, T(G.caixaArred(A, B, et, 6, 3), M.trans(0, 0, H - et / 2)));
-  G.juntar(tampo, caixaEm(-A / 2 + 1, -B / 2 - 1.5, H - et + 3, A / 2 - 1, -B / 2 + 1, H - 3)); // fita de borda
-  const zc0 = 60, zc1 = H - et;
-  G.juntar(corpo, caixaEm(-A / 2 + 25, -B / 2 + 30, zc0, A / 2 - 25, B / 2 - 20, zc1));
-  // rodapé recuado
-  G.juntar(frisos, caixaEm(-A / 2 + 45, -B / 2 + 50, 25, A / 2 - 45, B / 2 - 40, zc0));
-  // portas frontais (2) com frestas e puxadores
+  const A = op.comp || 1000, B = op.larg || 600, H = op.altura || 850, et = 30, rc = Math.min(60, B / 5, A / 5);
+  const tampo = G.vazia(), borda = G.vazia(), pes = G.vazia(), estr = G.vazia(), sap = G.vazia(), furos = G.vazia();
+  G.juntar(borda, T(G.caixaArred(A, B, et - 0.8, rc, 8), M.trans(0, 0, H - 0.8 - (et - 0.8) / 2)));
+  G.juntar(tampo, T(G.caixaArred(A - 2.4, B - 2.4, 0.8, rc - 1.2, 8), M.trans(0, 0, H - 0.4)));
+  // pés-painel nas pontas (recuados da borda do tampo), com sapatas niveladoras e os furos de montagem à vista
+  const ep = 28, xp = A / 2 - 75, yf = -B / 2 + 50, yt = B / 2 - 40, zc = H - et;
   for (const s of [-1, 1]) {
-    const x0 = s < 0 ? -A / 2 + 27 : 2, x1 = s < 0 ? -2 : A / 2 - 27;
-    G.juntar(corpo, caixaEm(x0, -B / 2 + 28, zc0 + 3, x1, -B / 2 + 30, zc1 - 45));
-    G.juntar(puxa, caixaEm(s < 0 ? x1 - 30 : x0 + 10, -B / 2 + 22, zc1 - 140, s < 0 ? x1 - 10 : x0 + 30, -B / 2 + 28, zc1 - 80));
+    G.juntar(pes, caixaEm(s * xp - ep / 2, yf, 12, s * xp + ep / 2, yt, zc));
+    for (const y of [yf + 45, yt - 45]) G.juntar(sap, T(G.cilindro(16, 0, 6, 14), M.trans(s * xp, y, 0)), T(G.cilindro(5, 6, 12, 8, false), M.trans(s * xp, y, 0)));
+    for (const [y, z] of [[yf + 120, zc - 300], [yt - 150, zc - 520]]) G.juntar(furos, T(G.disco(5, 0, 12), M.trans(s * (xp + ep / 2 + 0.3), y, z), M.rotY(s * Math.PI / 2)));
   }
-  G.juntar(frisos, caixaEm(-A / 2 + 27, -B / 2 + 28.5, zc1 - 42, A / 2 - 27, -B / 2 + 30.5, zc1 - 4)); // gaveta/faixa superior
-  for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-    const x = sx * (A / 2 - 60), y = sy * (B / 2 - 60);
-    G.juntar(pes, T(G.cilindro(6, 0, 30, 10, false), M.trans(x, y, 0)), T(G.cilindro(18, 0, 8, 16), M.trans(x, y, 0)));
-  }
+  // painel traseiro (saia) e travessa metálica na frente, logo abaixo do tampo
+  G.juntar(pes, caixaEm(-xp + ep / 2, yt - 60, zc - 330, xp - ep / 2, yt - 42, zc));
+  G.juntar(estr, caixaEm(-xp + ep / 2, yf + 30, zc - 40, xp - ep / 2, yf + 55, zc));
   return {
-    partes: [P('tampo', matE('cinzaChapa', { cor: [0.80, 0.81, 0.81], rug: 0.5 }), tampo), P('corpo', matE('cinzaChapa'), corpo), P('rodapé e frisos', matE('cinzaChapaEsc'), frisos),
-      P('pés', matE('cromado', { rug: 0.4 }), pes), P('puxadores', matE('plasticoPreto'), puxa)],
-    pontos: { tampo: [0, 0, H] },
+    partes: [P('tampo', matE('cinzaChapa', { cor: [0.69, 0.70, 0.69], metal: 0.05, rug: 0.5 }), tampo), P('borda do tampo', matE('cinzaChapaEsc', { cor: [0.30, 0.31, 0.32], metal: 0, rug: 0.6 }), borda),
+      P('pés e painel', matE('cinzaChapa', { cor: [0.62, 0.63, 0.63] }), pes), P('travessa', matE('cinzaChapaEsc', { cor: [0.42, 0.43, 0.44], metal: 0.4 }), estr),
+      P('sapatas', matE('plasticoPreto'), sap), P('furos', matE('plasticoPreto', { cor: [0.03, 0.03, 0.03] }), furos)],
+    pontos: { tampo: [0, 0, H], vao: [[-xp + ep / 2, yf, 0], [xp - ep / 2, yt - 60, zc - 40]] },
   };
 }
 
@@ -832,7 +1159,8 @@ function quadros(pts) {
   return Q;
 }
 // cabo(pontos, op): op.raio (3,5), op.cor ([r,g,b]), op.ramais (rabichos nas pontas), op.conectores (RJ45 nas
-// pontas; padrão = op.ramais), op.fios = n (n fios trançados + terra verde-amarelo), op.cores (cores dos fios).
+// pontas; padrão = op.ramais), op.fios = n (n fios trançados + terra verde-amarelo), op.cores (cores dos fios),
+// op.malha (com op.fios: malha de blindagem no lugar do terra, sem pontas de cobre).
 function cabo(pontosIn, op = {}) {
   const raio = op.raio || 3.5, pts = reamostrar(pontosIn, op.passo || Math.max(8, raio * 4));
   const corCabo = op.cor ? { cor: op.cor, metal: 0, rug: 0.45 } : matE('caboPreto');
@@ -850,6 +1178,11 @@ function cabo(pontosIn, op = {}) {
       return [p[0] + u[0] * c + w[0] * sn, p[1] + u[1] * c + w[1] * sn, p[2] + u[2] * c + w[2] * sn];
     });
     for (let k = 0; k < nf; k++) partes.push(P('fio ' + (k + 1), { cor: cores[k % cores.length], metal: 0, rug: 0.4 }, G.tubo(hel(k, nf + 1), rf, 5)));
+    // op.malha: em vez do fio terra, a malha de blindagem do cabo (trança de cobre estanhado), como nas células
+    if (op.malha) {
+      partes.push(P('malha', { cor: [0.62, 0.63, 0.65], metal: 0.8, rug: 0.45 }, G.tubo(hel(nf, nf + 1), rf * 1.15, 5)));
+      return { partes, pontos: { inicio: ini, fim } };
+    }
     // terra: verde com faixas amarelas (trechos alternados)
     const ht = hel(nf, nf + 1), verde = G.vazia(), amarelo = G.vazia(), tr = 4;
     for (let i = 0; i < n - 1; i += tr) {

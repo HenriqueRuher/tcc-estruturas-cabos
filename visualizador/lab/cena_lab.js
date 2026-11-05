@@ -31,6 +31,7 @@ const CONFIG = {
   // e os que viraram modelo 3D (o pallet sobre o caixote é a mesaPallet)
   removerProxies: ['pallet', 'caixa_sobre_pallet', 'caixa_laranja', 'caixa_mochila', 'tabua_em_pe', 'mesa_pecas', 'mesa_caixote',
     'bancada_cadeiras', 'tambor_azul', 'guindaste_amarelo', 'chapa_madeira',
+    'bancada_porta_tampo', 'bancada_porta_corpo', 'caixas_sobre_bancada', // a bancada da porta é a mesa dos computadores (modelo 3D)
     'escada_aluminio'],                      // a escada do panorama não aparece nas fotos da montagem final
   montagem: {
     // sem os marcadores dos cabos: parede em x = 1330 (normal para −X) e peças no sistema da parede [s, n]
@@ -88,12 +89,15 @@ const CONFIG = {
   visada: { fovH: 62, fovV: 40, folga: 3, folgaCamera: 4, sepMin: 35, distancias: [1800, 2200, 2600, 3000, 3400], alturas: [1535, 1600, 1500, 1700, 1450, 1800], alturaFoto: 1535 },
   // Parte elétrica (sistema da parede [s, n]; ajustar pelas fotos): câmeras ligadas em série
   // (câmera -> câmera -> câmera) até a base da Qualisys (Camera Sync Unit) e dela ao notebook 1;
-  // células de carga (4 fios + terra cada) até a base de aquisição e dela ao notebook 2.
+  // células de carga (cabo preto de 4 vias + malha cada) até a aquisição Lynx ADS1800 (canais 6 e 7) e dela,
+  // por cabo de rede, ao notebook 2.
   eletrica: {
-    // mesa dos dois computadores, em frente à porta pequena (parede oposta; centro da porta em s ≈ −2 850,
-    // pelo panorama), quase centralizada com ela e um pouco deslocada para o lado do portão da garagem (+s):
-    // notebook 1 + base da Qualisys (lado do portão) e notebook 2 + base das células de carga
-    mesaQualisys: [-2550, 3500], comprimentoMesa: 1400,
+    // Mesa dos dois computadores = a bancada cinza junto da porta (a "bancada_porta" do panorama: 2 344 × 800 mm,
+    // tampo a ~850 mm). Os notebooks ficam na ponta do lado do suporte (−s), encostada na câmera #1: nas fotos
+    // 2_montagem/notebook_celulas_e_ads1800_na_mesa e 5_montagem_final/montagem_final_lateral_cameras o tripé
+    // dessa câmera está logo à frente do canto da mesa. Na ponta, o notebook das células com o ADS1800 atrás;
+    // ao lado dele (para +s), o notebook da Qualisys com a Camera Sync Unit.
+    mesaQualisys: [-47, 3437], comprimentoMesa: 2344, profundidadeMesa: 800,
   },
   // sem os marcadores: câmeras no sistema da parede [s, n]
   cameras: [
@@ -188,7 +192,8 @@ function cabosMedidos(marcadores) {
 // ---------------------------------------------------------------- cabos
 // rota de cabo: de a, desce (por 'desce', lista de pontos no caminho até o chão), corre pelo chão com folga
 // e curvas suaves (pseudoaleatórias, mas fixas pela semente) e sobe até b (por 'sobe', do chão até b)
-function rotaCabo(a, b, semente, { desce = [], sobe = [], folga = 0.18 } = {}) {
+// chao = pontos [x, y] do caminho pelo chão (de rotaChao); sem ele, o cabo faz uma barriga para um dos lados.
+function rotaCabo(a, b, semente, { desce = [], sobe = [], folga = 0.18, chao = null } = {}) {
   let x = Math.sin(semente * 12.9898) * 43758.5453;
   const rnd = () => { x = Math.sin(x * 78.233 + 1.7) * 43758.5453; return x - Math.floor(x); };
   const r = 4.5;
@@ -197,7 +202,8 @@ function rotaCabo(a, b, semente, { desce = [], sobe = [], folga = 0.18 } = {}) {
   const d = [B[0] - A[0], B[1] - A[1]], L = Math.hypot(d[0], d[1]) || 1, nrm = [-d[1] / L, d[0] / L];
   const amp = Math.min(450, folga * L) * (rnd() < 0.5 ? -1 : 1), meio = [];
   const n = Math.max(2, Math.round(L / 600));
-  for (let i = 1; i < n; i++) {
+  if (chao) meio.push(...chao.map(([px, py]) => [px, py, r]));
+  else for (let i = 1; i < n; i++) {
     const t = i / n, w = amp * Math.sin(Math.PI * t) + (rnd() - 0.5) * Math.min(160, 0.06 * L);
     meio.push([A[0] + d[0] * t + nrm[0] * w, A[1] + d[1] * t + nrm[1] * w, r]);
   }
@@ -207,6 +213,75 @@ function rotaCabo(a, b, semente, { desce = [], sobe = [], folga = 0.18 } = {}) {
   if (fim[2] > r + 1) pts.push([fim[0], fim[1], r + 30]);
   pts.push(...sobe, b);
   return suave(pts.filter((p, i, arr) => i === 0 || dist(p, arr[i - 1]) > 1), 10).map((p) => [p[0], p[1], Math.max(p[2], r)]);
+}
+
+// Caminho de um cabo pelo chão, de a até b, desviando do que está no caminho: A* numa grade (passo 80 mm).
+// caixas = obstáculos { c, h, g } que tocam o chão; discos = [x, y, raio] (pés dos tripés). Passar perto de um
+// obstáculo custa mais (o cabo prefere a folga) e por dentro dele não passa, menos junto das pontas, que
+// podem estar encostadas num móvel. Devolve os pontos [x, y] do meio do caminho (sem a e b), já com uma
+// ondulação leve de cabo solto, ou null se não achar caminho.
+function rotaChao(a, b, caixas, discos = [], semente = 1, { passo = 80, folga = 150, borda = 1600 } = {}) {
+  const x0 = Math.min(a[0], b[0]) - borda, y0 = Math.min(a[1], b[1]) - borda;
+  const nx = Math.ceil((Math.abs(a[0] - b[0]) + 2 * borda) / passo) + 1, ny = Math.ceil((Math.abs(a[1] - b[1]) + 2 * borda) / passo) + 1;
+  const custo = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = x0 + i * passo, y = y0 + j * passo;
+    let d = Infinity;
+    for (const o of caixas) d = Math.min(d, distCaixa2D(x, y, o));
+    for (const [cx, cy, r] of discos) d = Math.min(d, Math.hypot(x - cx, y - cy) - r);
+    const ponta = Math.hypot(x - a[0], y - a[1]) < 220 || Math.hypot(x - b[0], y - b[1]) < 220;
+    custo[j * nx + i] = d < 20 ? (ponta ? 8 : Infinity) : (d < folga ? 1 + 6 * (1 - d / folga) : 1);
+  }
+  const celula = (p) => Math.max(0, Math.min(ny - 1, Math.round((p[1] - y0) / passo))) * nx + Math.max(0, Math.min(nx - 1, Math.round((p[0] - x0) / passo)));
+  const ini = celula(a), fim = celula(b), bx = fim % nx, by = (fim - bx) / nx;
+  const g = new Float32Array(nx * ny).fill(Infinity), veio = new Int32Array(nx * ny).fill(-1), fechado = new Uint8Array(nx * ny);
+  const fila = [[0, ini]]; g[ini] = 0; // fila de prioridade (heap binário) de [f, célula]
+  const tira = () => {
+    const topo = fila[0], ult = fila.pop();
+    if (fila.length) { fila[0] = ult; for (let i = 0; ;) { let m = i; const l = 2 * i + 1, r = l + 1;
+      if (l < fila.length && fila[l][0] < fila[m][0]) m = l; if (r < fila.length && fila[r][0] < fila[m][0]) m = r;
+      if (m === i) break; [fila[i], fila[m]] = [fila[m], fila[i]]; i = m; } }
+    return topo;
+  };
+  const poe = (e) => { fila.push(e); for (let i = fila.length - 1; i > 0;) { const p = (i - 1) >> 1; if (fila[p][0] <= fila[i][0]) break; [fila[i], fila[p]] = [fila[p], fila[i]]; i = p; } };
+  while (fila.length) {
+    const [, k] = tira();
+    if (k === fim) break;
+    if (fechado[k]) continue; fechado[k] = 1;
+    const i = k % nx, j = (k - i) / nx;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+      const ii = i + di, jj = j + dj; if ((!di && !dj) || ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+      const q = jj * nx + ii, c = custo[q]; if (fechado[q] || c === Infinity) continue;
+      const t = g[k] + Math.hypot(di, dj) * (c + custo[k]) / 2;
+      if (t < g[q]) { g[q] = t; veio[q] = k; poe([t + Math.hypot(ii - bx, jj - by), q]); }
+    }
+  }
+  if (veio[fim] < 0 && fim !== ini) return null;
+  let cel = []; for (let k = fim; k >= 0; k = veio[k]) cel.push(k);
+  cel = cel.reverse().map((k) => [x0 + (k % nx) * passo, y0 + Math.floor(k / nx) * passo]);
+  const pts = [[a[0], a[1]], ...cel.slice(1, -1), [b[0], b[1]]];
+  // estica o caminho: liga direto os pontos que se veem sem passar mais perto de um obstáculo do que já passavam
+  const pior = (p) => custo[celula(p)];
+  const reto = (p, q) => {
+    const n = Math.ceil(Math.hypot(q[0] - p[0], q[1] - p[1]) / (passo / 2)), lim = Math.max(2.4, Math.min(8, pior(p)), Math.min(8, pior(q)));
+    for (let i = 1; i < n; i++) if (pior([p[0] + (q[0] - p[0]) * i / n, p[1] + (q[1] - p[1]) * i / n]) > lim) return false;
+    return true;
+  };
+  const cantos = [pts[0]];
+  for (let i = 0; i < pts.length - 1;) { let j = pts.length - 1; while (j > i + 1 && !reto(pts[i], pts[j])) j--; cantos.push(pts[j]); i = j; }
+  // pontos a cada ~300 mm (a spline fica junto do caminho) com um vaivém de ±18 mm, que some junto das pontas
+  const out = []; let s = 0;
+  const total = cantos.reduce((t, p, i) => (i ? t + Math.hypot(p[0] - cantos[i - 1][0], p[1] - cantos[i - 1][1]) : 0), 0);
+  for (let i = 1; i < cantos.length; i++) {
+    const p = cantos[i - 1], q = cantos[i], L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, n = Math.max(1, Math.round(L / 300));
+    for (let k = 1; k <= n; k++) {
+      if (i === cantos.length - 1 && k === n) break;
+      const u = s + L * k / n, w = 18 * Math.sin(u / 240 + semente * 1.7) * Math.min(1, u / 300, (total - u) / 300);
+      out.push([p[0] + (q[0] - p[0]) * k / n - (q[1] - p[1]) / L * w, p[1] + (q[1] - p[1]) * k / n + (q[0] - p[0]) / L * w]);
+    }
+    s += L;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- linha de visada
@@ -378,7 +453,8 @@ function montar(cena, alvo, marcadores) {
   let fixPerfil = ponto(mPerfil, perfil.pontos.amarracao2);
   if (cel) {
     const c1 = L.celulaCarga({ numero: 1 }), t = c1.pontos.topo;
-    const mC = Mt.cadeia(matBase(P.s, P.n, fixPerfil), Mt.trans(-t[0], -t[1], -t[2]));
+    // virada com a saída do cabo para o lado da mesa de pallet (foto montagem_final_frente)
+    const mC = Mt.cadeia(matBase([-P.s[0], -P.s[1]], [-P.n[0], -P.n[1]], fixPerfil), Mt.trans(-t[0], -t[1], -t[2]));
     add('montagem', c1, mC);
     celulas.braco = ponto(mC, c1.pontos.cabo);
     fixPerfil = [fixPerfil[0], fixPerfil[1], fixPerfil[2] - dzCel];
@@ -530,7 +606,7 @@ function montar(cena, alvo, marcadores) {
   const livreChao = (x, y) => dentro(x, y) && obst.every((o) => o.c[2] - o.h[2] > 300 || distCaixa2D(x, y, o) > 450);
   { // mesa do computador (em frente à porta): obstáculo para os tripés e para a visada
     const cM = naParede(P, ...CONFIG.eletrica.mesaQualisys);
-    obst.push({ ...caixaQ(cM[0], cM[1], 0, CONFIG.eletrica.comprimentoMesa, 600, 850, Math.atan2(P.s[1], P.s[0])), nome: 'mesa dos computadores' });
+    obst.push({ ...caixaQ(cM[0], cM[1], 0, CONFIG.eletrica.comprimentoMesa, CONFIG.eletrica.profundidadeMesa, 850, Math.atan2(P.s[1], P.s[0])), nome: 'mesa dos computadores' });
   }
   // partida: com os marcadores, os centros ópticos da vista de cima do QTM (o pé do tripé fica atrás do centro óptico)
   const c0 = L.cameraTripe ? L.cameraTripe({ altura: CONFIG.visada.alturaFoto, inclinacao: 0 }).centroOptico : [100, 0, 0];
@@ -538,65 +614,134 @@ function montar(cena, alvo, marcadores) {
     : CONFIG.cameras.map(([s, n]) => naParede(P, s, n));
   const cams = escolherCameras(inicios, mira, marc, obst, livreChao, !!med);
   cams.forEach((k, i) => { k.movida = Math.hypot(k.x - inicios[i][0], k.y - inicios[i][1]); k.nome = med ? CONFIG.camerasQ[i].nome : String(i + 1); });
+  // As pernas do tripé não podem atravessar os móveis: a posição da câmera é medida e não muda, então o tripé
+  // é girado em torno da coluna (a cabeça gira solta) e, se preciso, as pernas são fechadas um pouco. O fim
+  // do cabo da câmera também tem de cair em chão livre. A mesa de pallet entra como duas caixas (pallet em
+  // cima, quadro e caixote recuados embaixo), porque um pé cabe sob a aba do pallet, como na foto.
+  const obstPernas = obst.flatMap((o) => (o.nome !== 'mesa de pallet' ? [o]
+    : [{ ...o, c: [o.c[0], o.c[1], 680], h: [o.h[0], o.h[1], 70] }, { ...o, c: [o.c[0], o.c[1], 305], h: [o.h[0] - 120, o.h[1] - 60, 305] }]));
+  const noPiso = (x, y, folga) => { const [sx, sy] = qParaSala(x, y); return sx > sala.x0 + folga && sx < sala.x1 - folga && sy > sala.y0 + folga && sy < sala.y1 - folga; };
+  const apoiarTripe = (k) => {
+    const mundo = (p, fi) => { const c = Math.cos(k.giro + fi), sn = Math.sin(k.giro + fi); return [k.x + p[0] * c - p[1] * sn, k.y + p[0] * sn + p[1] * c, p[2]]; };
+    let reserva = null;
+    for (const abertura of [600, 560, 520, 480, 440, 400, 360]) {
+      const pt = L.cameraTripe({ altura: k.alt, inclinacao: 0, abertura }).pontos || {};
+      if (!pt.pes) return {};
+      for (let i = 0; i < 36; i++) { // giros de 0, +10°, −10°, +20°… até 180°
+        const fi = rad((i % 2 ? 1 : -1) * Math.ceil(i / 2) * 10);
+        const pes = pt.pes.map(([H, F]) => [mundo(H, fi), mundo(F, fi)]);
+        const bate = pes.some(([H, F]) => {
+          if (!noPiso(F[0], F[1], 40)) return true;
+          for (let t = 0; t <= 1.001; t += 1 / 16) {
+            const p = [0, 1, 2].map((a) => H[a] + (F[a] - H[a]) * t);
+            if (obstPernas.some((o) => Math.abs(p[2] - o.c[2]) < o.h[2] + 15 && distCaixa2D(p[0], p[1], o) < 25)) return true;
+          }
+          return false;
+        });
+        if (bate) continue;
+        const fim = mundo(pt.caboFim, fi); fim[2] = 4.5;
+        const r = { abertura, giroPernas: fi, pes: pes.map(([, F]) => F), fimCabo: fim };
+        if (noPiso(fim[0], fim[1], 60) && obst.every((o) => o.c[2] - o.h[2] > 60 || distCaixa2D(fim[0], fim[1], o) > 60)) return r;
+        reserva = reserva || r;
+      }
+    }
+    return reserva || {};
+  };
   if (L.cameraTripe) for (const k of cams) {
+    Object.assign(k, apoiarTripe(k));
     const incl = Math.atan2(k.alt - mira[2], Math.hypot(mira[0] - k.o[0], mira[1] - k.o[1])) * 180 / Math.PI;
-    add('cameras', L.cameraTripe({ altura: k.alt, inclinacao: incl }), Mt.cadeia(Mt.trans(k.x, k.y, 0), Mt.rotZ(k.giro)));
+    add('cameras', L.cameraTripe({ altura: k.alt, inclinacao: incl, abertura: k.abertura, giroPernas: k.giroPernas }), Mt.cadeia(Mt.trans(k.x, k.y, 0), Mt.rotZ(k.giro)));
   }
   // ---- parte elétrica: câmeras em série -> base da Qualisys -> notebook 1; células -> base -> notebook 2
-  const El = CONFIG.eletrica, fimCabos = cams.map((k) => {
-    const cm = L.cameraTripe ? L.cameraTripe({ altura: k.alt, inclinacao: 0 }).pontos : null;
-    if (!cm || !cm.caboFim) return [k.x, k.y, 4.5];
-    const c = Math.cos(k.giro), sn = Math.sin(k.giro), f = cm.caboFim;
-    return [k.x + f[0] * c - f[1] * sn, k.y + f[0] * sn + f[1] * c, 4.5];
-  });
+  const El = CONFIG.eletrica, fimCabos = cams.map((k) => k.fimCabo || [k.x, k.y, 4.5]);
+  // os cabos correm pelo chão desviando dos móveis, dos pés dos tripés, do L-frame e da maleta de alumínio
+  // (a mala preta fica em pé sob a mesa; a de alumínio, no chão à frente da outra metade da mesa; estimado)
+  const maleta = [-860, 720], mMalas = matBase([-P.s[0], -P.s[1]], [-P.n[0], -P.n[1]], naParede(P, El.mesaQualisys[0] - 250, El.mesaQualisys[1] + 120));
+  const cMaleta = ponto(mMalas, [maleta[0], maleta[1], 0]);
+  const caixasChao = [...obst.filter((o) => o.c[2] - o.h[2] < 60),
+    caixaQ(cMaleta[0], cMaleta[1], 0, 1100, 260, 150, Math.atan2(-P.s[1], -P.s[0]) + 0.12),
+    caixaQ(290, 0, 0, 650, 60, 60), caixaQ(0, 195, 0, 60, 450, 60)];
+  const pesTripes = cams.flatMap((k) => [[k.x, k.y, 220], ...(k.pes || []).map((f) => [f[0], f[1], 45])]); // pés e o miolo sob o tripé
+  // nenhum cabo passa por baixo das correntes (a zona do ensaio fica livre); só para o cabo da célula 2 a faixa
+  // abre junto do suporte, para ele poder sair da chapa de base
+  const zonaEnsaio = [], zonaAberta = [];
+  if (med) for (const nome of ['perfil', 'suporte', 'poste']) {
+    const f = fins[nome].p, n = Math.ceil(Math.hypot(f[0] - no[0], f[1] - no[1]) / 120);
+    for (let i = 0; i <= n; i++) {
+      const q = [no[0] + (f[0] - no[0]) * i / n, no[1] + (f[1] - no[1]) * i / n];
+      zonaEnsaio.push([q[0], q[1], 110]);
+      if (nome !== 'suporte' || Math.hypot(q[0] - f[0], q[1] - f[1]) > 320) zonaAberta.push([q[0], q[1], 110]);
+    }
+  }
+  const peloChao = (a, b, semente, zona = zonaEnsaio) => rotaChao(a, b, caixasChao, [...pesTripes, ...zona], semente);
   if (L.cabo && L.mesaApoio && L.notebook && L.syncUnit) {
-    const cM = naParede(P, ...El.mesaQualisys), cmp = El.comprimentoMesa;
-    const mesa = L.mesaApoio({ comp: cmp }), hT = (mesa.pontos && mesa.pontos.tampo) ? mesa.pontos.tampo[2] : 850;
+    const cM = naParede(P, ...El.mesaQualisys), cmp = El.comprimentoMesa, prof = El.profundidadeMesa;
+    const mesa = L.mesaApoio({ comp: cmp, larg: prof }), hT = (mesa.pontos && mesa.pontos.tampo) ? mesa.pontos.tampo[2] : 850;
     add('montagem', mesa, matBase([-P.s[0], -P.s[1]], [-P.n[0], -P.n[1]], cM)); // frente (−Y local) para o operador
     // malas da Qualisys: a preta em pé sob a mesa e a de alumínio no chão, do lado do experimento
-    if (L.malasQualisys) add('montagem', L.malasQualisys({ maleta: [250, 650] }), matBase([-P.s[0], -P.s[1]], [-P.n[0], -P.n[1]], naParede(P, El.mesaQualisys[0] - 250, El.mesaQualisys[1] + 120)));
+    if (L.malasQualisys) add('montagem', L.malasQualisys({ maleta }), mMalas);
     // sobre a mesa (s ao longo da parede, n para dentro da sala; o operador fica do lado da porta)
     const sobre = (ds, dn, dz = 0) => naParede(P, El.mesaQualisys[0] + ds, El.mesaQualisys[1] + dn, hT + dz);
     const virado = (p) => matBase([-P.s[0], -P.s[1]], [-P.n[0], -P.n[1]], p); // tela virada para o experimento
     const pt = (m, q, def) => (q ? ponto(m, q) : def);
-    // o computador da Qualisys é o mais próximo do portão da garagem (+s); o das células, o mais longe
-    const nb1 = L.notebook(), su = L.syncUnit(), mNb1 = virado(sobre(cmp / 4, 60)), mSu = matBase(P.s, P.n, sobre(cmp / 4 + 120, -190));
+    // na ponta da mesa (−s): o notebook das células; ao lado dele (+s), o da Qualisys com a Camera Sync Unit
+    const sQ = -cmp / 2 + 1080, sC = -cmp / 2 + 340; // centro de cada notebook ao longo da mesa
+    const nb1 = L.notebook({ modelo: 'qualisys' }), su = L.syncUnit(), mNb1 = virado(sobre(sQ, 80)), mSu = matBase(P.s, P.n, sobre(sQ + 330, -230));
     add('montagem', nb1, mNb1); add('montagem', su, mSu);
-    const entSu = pt(mSu, su.pontos && su.pontos.entrada, sobre(cmp / 4, -190)), saiSu = pt(mSu, su.pontos && su.pontos.saida, entSu);
-    const portaNb1 = pt(mNb1, nb1.pontos && nb1.pontos.porta, sobre(cmp / 4, 60));
-    const bordaTras = (p, z = hT) => { const [ps] = daParede(P, p); return naParede(P, ps, El.mesaQualisys[1] - 300 - 15, z); }; // desce pela borda de trás
+    const entSu = pt(mSu, su.pontos && su.pontos.entrada, sobre(sQ, -230)), saiSu = pt(mSu, su.pontos && su.pontos.saida, entSu);
+    const portaNb1 = pt(mNb1, nb1.pontos && nb1.pontos.porta, sobre(sQ, 80));
+    const nTras = El.mesaQualisys[1] - prof / 2; // borda de trás da mesa (lado do experimento)
+    const bordaTras = (p, z = hT) => { const [ps] = daParede(P, p); return naParede(P, ps, nTras - 15, z); }; // desce pela borda de trás
     const ligaMesa = (a, b) => suave([a, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, hT + 6], b], 12);
     // câmeras em série: da mais longe à mais perto da mesa, e dela à base da Qualisys
     const ordem = [0, 1, 2].sort((a, b) => dist(fimCabos[b], cM) - dist(fimCabos[a], cM));
     for (let i = 0; i < ordem.length; i++) {
       const a = fimCabos[ordem[i]], ultimaCam = i === ordem.length - 1, b = ultimaCam ? entSu : fimCabos[ordem[i + 1]];
-      const rota = ultimaCam ? rotaCabo(a, b, 11 + i, { sobe: [bordaTras(entSu, 300), bordaTras(entSu, hT + 5)] }) : rotaCabo(a, b, 11 + i);
+      const sobe = ultimaCam ? [bordaTras(entSu, 300), bordaTras(entSu, hT + 5)] : [];
+      const rota = rotaCabo(a, b, 11 + i, { sobe, chao: peloChao(a, sobe[0] || b, 11 + i) });
       add('montagem', L.cabo(rota, { raio: 3.5, ramais: true, conectores: true }), Mt.id());
     }
     add('montagem', L.cabo(ligaMesa(saiSu, portaNb1), { raio: 2.5 }), Mt.id());
-    // notebook 2 + base das células na outra metade da mesa
+    // notebook das células + aquisição Lynx ADS1800 na ponta da mesa. O ADS1800 fica atrás do notebook, com o
+    // painel dos bornes virado para o experimento e rente à borda da mesa (os cabos das células sobem por fora
+    // da borda e entram nos bornes dos canais 6 e 7) e o painel traseiro, com a rede, virado para o operador
+    // (fotos 2_montagem/aquisicao_lynx_ads1800_celulas_canais_6_e_7 e notebook_celulas_e_ads1800_na_mesa).
     if (L.baseCelulas) {
-      const nb2 = L.notebook(), bc = L.baseCelulas(), mNb2 = virado(sobre(-cmp / 4, 60)), mB = matBase(P.s, P.n, sobre(-cmp / 4 - 120, -190));
+      const nb2 = L.notebook({ modelo: 'precision' }), bc = L.baseCelulas(), eb = (bc.pontos && bc.pontos.entradas) || [[-106, -30, 14], [-106, 30, 14]];
+      const mNb2 = virado(sobre(sC, 90)), mB = matBase(P.n, [-P.s[0], -P.s[1]], sobre(sC - 150, -prof / 2 - 6 - eb[0][0]));
       add('montagem', nb2, mNb2); add('montagem', bc, mB);
-      const ent = (bc.pontos && bc.pontos.entradas) ? bc.pontos.entradas.map((q) => ponto(mB, q)) : [sobre(-cmp / 4, -190), sobre(-cmp / 4, -190)];
-      const sai = pt(mB, bc.pontos && bc.pontos.saida, ent[0]), portaNb2 = pt(mNb2, nb2.pontos && nb2.pontos.porta, sobre(-cmp / 4, 60));
-      add('montagem', L.cabo(ligaMesa(sai, portaNb2), { raio: 2.5 }), Mt.id());
-      // célula 1 (braço): o cabo vai até a mesa de pallet, fica enrolado sobre ela e desce por trás até o chão
-      // (fotos montagem_final_frente e _lateral_cameras; o trecho até a mesa dos computadores é estimado)
+      const ent = eb.map((q) => ponto(mB, q));
+      const sai = pt(mB, bc.pontos && bc.pontos.saida, ent[0]), portaNb2 = pt(mNb2, nb2.pontos && (nb2.pontos.portaRede || nb2.pontos.porta), sobre(sC, 90)); // rede na traseira do notebook
+      add('montagem', L.cabo(ligaMesa(sai, portaNb2), { raio: 2.6, cor: [0.08, 0.22, 0.72], conectores: true }), Mt.id()); // cabo de rede azul
+      // Os cabos das células são cabos pretos (fotos 5_montagem_final); só no fim, junto dos bornes, a capa
+      // acaba e aparecem os 4 fios + terra.
+      const caboCelula = (rota) => {
+        let k = rota.length - 1, resto = 0;
+        while (k > 1 && resto < 90) { resto += dist(rota[k], rota[k - 1]); k--; }
+        add('montagem', L.cabo(rota.slice(0, k + 1), { raio: 2.6 }), Mt.id());
+        add('montagem', L.cabo(rota.slice(k), { fios: 4, malha: true, cores: [[0.78, 0.07, 0.06], [0.06, 0.48, 0.22], [0.92, 0.80, 0.10], [0.04, 0.04, 0.04]] }), Mt.id());
+      };
+      // chegada ao ADS1800: cada cabo sobe por fora da borda da mesa, na direção do seu borne, e entra nele por
+      // baixo (ds abre os dois cabos no chão para não subirem um por cima do outro)
+      const chegada = (e, ds) => { const [ps, pn] = daParede(P, e);
+        return [naParede(P, ps + ds, pn - 35, 300), naParede(P, ps + ds * 0.4, pn - 30, hT - 140), naParede(P, ps, pn - 16, e[2] - 45)]; };
+      // célula 1 (braço): o cabo vai até a mesa de pallet e fica enrolado sobre ela (fotos montagem_final_frente
+      // e _lateral_cameras); dali desce pela ponta da mesa e segue pelo chão até a mesa dos computadores (estimado)
       if (celulas.braco) {
         const c0b = celulas.braco, zT = 750 + 4, [sp, np] = mv.mesaPallet;
         const sobreP = (ds, dn, dz = 0) => naParede(P, sp + ds, np + dn, zT + dz);
         const rolo = []; for (let i = 0; i <= 40; i++) { const a = 2 * Math.PI * 2.5 * i / 40; rolo.push(sobreP(-260 + 85 * Math.cos(a), -60 + 70 * Math.sin(a), 6 + 3 * Math.sin(a * 0.5))); }
         const meio = [(c0b[0] + rolo[0][0]) / 2, (c0b[1] + rolo[0][1]) / 2, Math.min(c0b[2], zT) + 60];
-        const rota = rotaCabo(c0b, ent[0], 31, { desce: [meio, sobreP(-540, -120, 4), ...rolo, sobreP(-150, 330, 4), sobreP(-150, 395, -20), sobreP(-150, 395, -400), sobreP(-150, 395, -720)],
-          sobe: [bordaTras(ent[0], 300), bordaTras(ent[0], hT + 5)] });
-        add('montagem', L.cabo(rota, { fios: 4 }), Mt.id());
+        const desce = [meio, sobreP(-540, -120, 4), ...rolo, sobreP(-500, 150, 4), sobreP(-590, 200, 4), sobreP(-628, 215, -14), sobreP(-628, 215, -400), sobreP(-628, 215, -715)];
+        const sobe = chegada(ent[0], 30);
+        caboCelula(rotaCabo(c0b, ent[0], 31, { desce, sobe, chao: peloChao(desce[desce.length - 1], sobe[0], 31) }));
       }
-      // célula 2 (suporte): desce por dentro do suporte até a chapa de base e corre pelo chão até a mesa
+      // célula 2 (suporte): desce junto da perna do suporte até a chapa de base, sai pela borda e corre pelo chão até a mesa
       if (celulas.suporte && mSup) {
         const c0s = celulas.suporte, pe = ponto(mSup, [-150, -150, 40]);
-        const rota = rotaCabo(c0s, ent[1], 23, { desce: [[c0s[0], c0s[1], c0s[2] - 80], [pe[0], pe[1], 300], [pe[0], pe[1], 32]], sobe: [bordaTras(ent[1], 300), bordaTras(ent[1], hT + 5)] });
-        add('montagem', L.cabo(rota, { fios: 4 }), Mt.id());
+        const desce = [[c0s[0], c0s[1], c0s[2] - 80], [pe[0], pe[1], 300], [pe[0], pe[1], 110], [pe[0], pe[1], 37], ponto(mSup, [-150, -205, 36]), ponto(mSup, [-150, -262, 34])];
+        const sobe = chegada(ent[1], -30);
+        caboCelula(rotaCabo(c0s, ent[1], 23, { desce, sobe, chao: peloChao(desce[desce.length - 1], sobe[0], 23, zonaAberta) }));
       }
     }
   }

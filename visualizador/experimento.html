@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experimento — Qualisys</title>
 <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=20261105f">
+<link rel="stylesheet" href="style.css?v=20261105h">
 </head>
 <body>
 
@@ -60,6 +60,31 @@
         </select>
       </label>
     </div>
+
+    <section class="card comp" id="cardComp" hidden>
+      <h2>Qualisys × analítico × Ansys <small>a mesma corrente, com os parâmetros medidos</small></h2>
+      <div class="comp-leg" role="group" aria-label="Séries mostradas na vista 3D">
+        <span class="comp-item"><span class="comp-sw real" aria-hidden="true"></span>Qualisys (medido)</span>
+        <label class="comp-item"><input type="checkbox" id="chCompAn" checked><span class="comp-sw an" aria-hidden="true"></span>Analítico</label>
+        <label class="comp-item"><input type="checkbox" id="chCompAns" checked><span class="comp-sw ans" aria-hidden="true"></span>Ansys</label>
+        <label class="comp-item dica" data-dica="Os modelos ficam a milímetros dos marcadores, pouco para ver na vista. Cada ponto medido ganha um traço até onde o modelo o colocaria, com essa distância multiplicada pelo fator escolhido. Em 1× só as curvas aparecem.">desvio ampliado
+          <select id="compExag" aria-label="Ampliação do desvio dos modelos na vista 3D">
+            <option value="1">1× (real)</option>
+            <option value="10">10×</option>
+            <option value="20" selected>20×</option>
+            <option value="50">50×</option>
+          </select>
+        </label>
+      </div>
+      <div class="pgrid" id="compResumo"></div>
+      <div class="tablewrap"><table class="tbl clicavel comp-tbl" id="tblComp"></table></div>
+      <p class="note" id="compNota"></p>
+      <details class="sub-card">
+        <summary>Trações em cada ramo</summary>
+        <div class="tablewrap"><table class="tbl comp-t" id="tblCompT"></table></div>
+        <p class="note" id="compNotaT"></p>
+      </details>
+    </section>
 
     <section class="card" id="cardGr">
       <h2 id="grTitulo">Deslocamento × tempo</h2>
@@ -234,7 +259,8 @@ B	-139,5	256,6	521,1</pre>
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
 <script src="experimento_dados.js?v=20261105f" onerror="window.QTM_ARQUIVOS=null"></script>
-<script src="experimento.js?v=20261105f"></script>
+<script src="experimento_comparacao.js?v=20261105h" onerror="window.QTM_COMPARACAO=null"></script>
+<script src="experimento.js?v=20261105h"></script>
 <script src="notas.js?v=20261105f"></script>
 <script src="codigos.js?v=20261105f" onerror="window.CODIGOS=null"></script>
 <script src="codigo.js?v=20261105f"></script>

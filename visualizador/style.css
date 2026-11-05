@@ -492,6 +492,33 @@ summary > .info-pop { top: 46px; font-weight: 400; cursor: default; }
 .tbl.clicavel tbody tr:hover td { background: var(--surface-2); }
 .tbl.clicavel tbody tr.on td { background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
 /* resultados em texto que ficam visíveis no card (fora do ícone "i") */
+/* comparação Qualisys × analítico × Ansys (página do Experimento) */
+.comp-leg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 0 0 12px; font-size: 12.5px; color: var(--ink-2); }
+.comp-item { display: inline-flex; align-items: center; gap: 7px; }
+label.comp-item { cursor: pointer; }
+.comp-item input { accent-color: var(--accent); margin: 0; }
+.comp-item select { margin-left: 2px; }
+.comp-sw { display: inline-block; flex: none; width: 20px; height: 0; border-top: 2px solid var(--c1); }
+.comp-sw.ans { border-top: 2px dashed var(--c2); }
+.comp-sw.real { width: 9px; height: 9px; border: 0; border-radius: 50%; background: var(--ink-2); }
+.comp-leg .dica::after { left: auto; right: 0; }
+.comp-tbl thead th:nth-child(2), .comp-tbl tbody td:nth-child(2) { text-align: left; }
+.comp-tbl td.bar { white-space: nowrap; }
+.comp-tbl .bc { display: inline-block; width: 72px; height: 6px; margin-right: 8px; vertical-align: 1px; text-align: left; }
+.comp-tbl .bc i { display: block; height: 100%; min-width: 2px; border-radius: 0 3px 3px 0; background: var(--c1); }
+.comp-tbl .bc.ans i { background: var(--c2); }
+.comp-tbl tfoot td { border-top: 1px solid var(--line); border-bottom: 0; color: var(--ink-2); font-weight: 600; }
+.comp-tbl tfoot tr + tr td { border-top: 0; }
+.comp-t th.grp { text-align: center; border-left: 1px solid var(--line); color: var(--ink); }
+.comp-t thead tr:first-child th { border-bottom: 0; }
+.comp-t td:nth-child(2), .comp-t td:nth-child(5), .comp-t thead tr:nth-child(2) th:nth-child(1), .comp-t thead tr:nth-child(2) th:nth-child(4) { border-left: 1px solid var(--line); }
+.card.comp .sub-card { margin: 12px 0 0; }
+@media (max-width: 560px) {
+  /* no celular a coluna do arco sai, para os dois erros caberem sem rolar */
+  .comp-tbl .bc { width: 20px; margin-right: 5px; }
+  .comp-tbl th, .comp-tbl td { padding-left: 3px; padding-right: 3px; }
+  .comp-tbl thead th:nth-child(3), .comp-tbl tbody td:nth-child(3), .comp-tbl tfoot td:nth-child(2) { display: none; }
+}
 .res { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-2); }
 .res:empty { display: none; }
 /* logo do Ansys no card da página inicial (versão clara/escura conforme o tema) */

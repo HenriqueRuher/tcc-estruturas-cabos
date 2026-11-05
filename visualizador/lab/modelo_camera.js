@@ -6,6 +6,9 @@
 //   altura      altura do centro óptico (meio da lente) acima do chão, mm (padrão 1500)
 //   inclinacao  graus, positivo = lente para baixo (padrão 15)
 //   abertura    raio, no chão, dos pés das pernas, mm (padrão 600)
+//   giroPernas  giro do tripé em torno da coluna, em relação à câmera, rad (padrão 0): a cabeça gira solta,
+//               então as pernas podem ser viradas para não bater num móvel
+// pontos.pes = [[quadril, pé], …] de cada perna (para testar colisão); pontos.caboFim = fim do cabo no chão.
 // Sistema local: origem no chão, no centro do tripé; Z para cima; eixo óptico para +X
 // (inclinado no plano XZ). Unidades em mm.
 (() => {
@@ -219,9 +222,10 @@ function cabecaInclina(P) {
 }
 
 // ---------------------------------------------------------------- tripé 055 (origem no chão)
-const AZ = [0, 120, 240].map(rad);
-function tripe(P, zs, topoColuna, abertura) {
+const AZ0 = [0, 120, 240].map(rad);
+function tripe(P, zs, topoColuna, abertura, giro = 0) {
   // aranha (peça fundida no topo) e coluna central
+  const AZ = AZ0.map((a) => a + giro);
   const rv = 66, tri = AZ.map((a) => [rv * Math.cos(a), rv * Math.sin(a)]);
   P.plastico.push(G.extrusao(poliArred(tri, 22, 6), zs - 50, zs));
   P.aluminio.push(G.extrusao(poliArred(AZ.map((a) => [52 * Math.cos(a + Math.PI / 3), 52 * Math.sin(a + Math.PI / 3)]), 18, 5), zs - 46, zs - 4));
@@ -278,7 +282,7 @@ function base3(d, n) {
 
 // ---------------------------------------------------------------- montagem
 function cameraTripe(op = {}) {
-  const altura = op.altura ?? 1500, incl = rad(op.inclinacao ?? 15), abertura = op.abertura ?? 600;
+  const altura = op.altura ?? 1500, incl = rad(op.inclinacao ?? 15), abertura = op.abertura ?? 600, giroP = op.giroPernas || 0;
   const P = {}; for (const k in MAT) P[k] = [];
   // quadro da câmera em relação ao pivô: corpo recuado 15 mm, base sobre a placa
   const Pcam = {}; for (const k in MAT) Pcam[k] = [];
@@ -291,7 +295,7 @@ function cameraTripe(op = {}) {
   const oRot = aplicar(R, oLocal);
   const topoColuna = altura - PIVO - oRot[2];
   const zs = Math.max(260, Math.min(topoColuna - 45, 1400));
-  const pes = tripe(P, zs, topoColuna, abertura);
+  const pes = tripe(P, zs, topoColuna, abertura, giroP);
   const Pfix = {}; for (const k in MAT) Pfix[k] = [];
   cabecaFixa(Pfix);
   const mFix = M.trans(0, 0, topoColuna);
@@ -309,8 +313,9 @@ function cameraTripe(op = {}) {
   const pe = pes[1], ladoPerna = (t, off) => add(add(pe.at(t), mulv(pe.nOut, off)), [0, 0, 0]);
   const c3 = ladoPerna(0.22 * pe.L, 40), c4 = ladoPerna(0.5 * pe.L, 26), c5 = ladoPerna(0.85 * pe.L, 30);
   const c6 = add(pe.F, add(mulv(pe.nOut, 60), [0, 0, -30 + 5]));
-  const c7 = add(pe.F, add(mulv(pe.nOut, 200), [-60, 40, -30 + 5]));
-  const c8 = add(pe.F, add(mulv(pe.nOut, 520), [-180, 140, -30 + 5]));
+  const cg = Math.cos(giroP), sg = Math.sin(giroP), noChao = (x, y) => [x * cg - y * sg, x * sg + y * cg, -30 + 5]; // acompanha o giro das pernas
+  const c7 = add(pe.F, add(mulv(pe.nOut, 200), noChao(-60, 40)));
+  const c8 = add(pe.F, add(mulv(pe.nOut, 520), noChao(-180, 140)));
   c6[2] = 8; c7[2] = 4.5; c8[2] = 4.5; // no chão (nOut tem componente vertical)
   const fio = spline([c0, c1, c2, c3, c4, c5, c6, c7, c8], 12);
   fio.forEach((p) => { p[2] = Math.max(p[2], 4); });
@@ -325,7 +330,7 @@ function cameraTripe(op = {}) {
   }
   const eixo = aplicar(R, [1, 0, 0]);
   // pontos.caboFim: onde o cabo da câmera termina no chão (para emendar a ligação em série); caboDir: direção
-  return { partes, centroOptico: aplicar(mInc, oLocal), eixo, pontos: { caboFim: c8, caboDir: [c8[0] - c7[0], c8[1] - c7[1], 0] } };
+  return { partes, centroOptico: aplicar(mInc, oLocal), eixo, pontos: { caboFim: c8, caboDir: [c8[0] - c7[0], c8[1] - c7[1], 0], pes: pes.map((q) => [q.H, q.F]) } };
 }
 
 window.LAB_MODELOS = window.LAB_MODELOS || {};
