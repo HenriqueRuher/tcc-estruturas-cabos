@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experimento — Qualisys</title>
-<link rel="stylesheet" href="style.css?v=20261105e">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=20261105f">
 </head>
 <body>
 
 <header class="top">
   <div>
-    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Experimento <span class="tag">Qualisys</span></h1>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início" aria-label="Voltar ao início"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a> Experimento <span class="tag">Qualisys</span></h1>
     <p class="sub" id="sub">Marcadores medidos pelo sistema de captura de movimento (exportação TSV do Qualisys Track Manager)</p>
   </div>
   <div class="hdr-btns">
@@ -18,7 +19,7 @@
       <input type="file" id="arquivo" accept=".tsv,.csv,.txt" hidden>
       <svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M7 8.5l5-5 5 5M5 19.5h14"/></svg><span>Importar</span>
     </label>
-    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+    <button id="btnTema" class="ghost ico" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg></button>
   </div>
 </header>
 
@@ -33,7 +34,7 @@
         <button type="button" data-view="side">Lateral <small>YZ</small></button>
         <button type="button" data-view="top">Superior <small>XY</small></button>
         <button type="button" data-view="pano" id="btnPano" hidden title="Vista do ponto onde as fotos do laboratório foram tiradas: o ambiente fica esférico, sem distorção. Arraste para olhar em volta.">Panorama 360°</button>
-        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+        <button type="button" id="btnPng" class="com-ico" title="Salvar a imagem atual como PNG" aria-label="Salvar PNG"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg><span class="so-largo">Salvar PNG</span></button>
       </div>
       <div class="exag-tag" id="exagTag" hidden></div>
       <div class="hint" id="hint3d">arraste = girar · roda = zoom · duplo clique = reiniciar vista · solte um arquivo aqui para importar</div>
@@ -42,9 +43,9 @@
     </div>
 
     <div class="timeline" id="timeline">
-      <button id="btnPrev" type="button" class="ico" title="Quadro anterior (←; Shift = 1 s)" aria-label="Quadro anterior">⏮</button>
-      <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir">▶</button>
-      <button id="btnNext" type="button" class="ico" title="Próximo quadro (→; Shift = 1 s)" aria-label="Próximo quadro">⏭</button>
+      <button id="btnPrev" type="button" class="ico" title="Quadro anterior (←; Shift = 1 s)" aria-label="Quadro anterior"><svg class="bi cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6.5v11"/><path d="M18 6.5v11l-8-5.5z"/></svg></button>
+      <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir"><svg class="bi cheio i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5v13l10-6.5z"/></svg><svg class="bi i-pausa" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6v12M15.5 6v12" stroke-width="2.8"/></svg></button>
+      <button id="btnNext" type="button" class="ico" title="Próximo quadro (→; Shift = 1 s)" aria-label="Próximo quadro"><svg class="bi cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 6.5v11"/><path d="M6 6.5v11l8-5.5z"/></svg></button>
       <input id="slider" type="range" min="0" max="0" step="1" value="0" aria-label="Quadro">
       <div class="tl-info">
         <b id="tlTempo"></b>
@@ -101,9 +102,9 @@
       </details>
 
       <div class="dados-ctl">
-        <button type="button" id="pgAnt" class="ico" aria-label="Página anterior" title="Página anterior">◀</button>
+        <button type="button" id="pgAnt" class="ico" aria-label="Página anterior" title="Página anterior"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
         <span id="pgInfo"></span>
-        <button type="button" id="pgProx" class="ico" aria-label="Próxima página" title="Próxima página">▶</button>
+        <button type="button" id="pgProx" class="ico" aria-label="Próxima página" title="Próxima página"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
         <button type="button" id="pgAtual" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/></svg>Ir ao quadro atual</button>
         <label class="seguir"><input type="checkbox" id="chSeguir" checked> acompanhar a animação</label>
       </div>
@@ -232,10 +233,10 @@ B	-139,5	256,6	521,1</pre>
 
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
-<script src="experimento_dados.js?v=20261105e" onerror="window.QTM_ARQUIVOS=null"></script>
-<script src="experimento.js?v=20261105e"></script>
-<script src="notas.js?v=20261105e"></script>
-<script src="codigos.js?v=20261105e" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js?v=20261105e"></script>
+<script src="experimento_dados.js?v=20261105f" onerror="window.QTM_ARQUIVOS=null"></script>
+<script src="experimento.js?v=20261105f"></script>
+<script src="notas.js?v=20261105f"></script>
+<script src="codigos.js?v=20261105f" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261105f"></script>
 </body>
 </html>

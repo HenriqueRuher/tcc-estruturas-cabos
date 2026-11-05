@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Modelo analítico — Catenária</title>
-<link rel="stylesheet" href="style.css?v=20261104d">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=20261105f">
 </head>
 <body>
 
 <header class="top">
   <div>
-    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Modelo analítico <span class="tag" id="tagModo">Caso geral 2D</span></h1>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início" aria-label="Voltar ao início"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a> Modelo analítico <span class="tag" id="tagModo">Caso geral 2D</span></h1>
     <p class="sub" id="subModo">Cabo ideal (inextensível, sem rigidez à flexão): trechos com pesos diferentes e forças concentradas · reúne os Códigos 1 a 4 do TCC</p>
   </div>
   <div class="hdr-btns">
@@ -22,13 +23,13 @@
         <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M2 18 L12 22 L30 16 L20 12 Z" class="eixo"/><path d="M5 4 C 8 16, 13 16, 16 13 M27 3 C 24 14, 19 15, 16 13 M16 13 C 15 18, 11 17, 10 10"/><circle cx="16" cy="13" r="1.8" class="no"/></svg>
       </button>
     </div>
-    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+    <button id="btnTema" class="ghost ico" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg></button>
   </div>
 </header>
 
 <main class="layout">
   <section class="stage" aria-label="Gráfico">
-    <div class="viewport" id="viewport">
+    <div class="viewport legenda-faixa" id="viewport">
       <canvas id="cv" role="img" aria-label="Perfil do cabo pintado pela tração"></canvas>
       <div class="toolbar" role="group" aria-label="Ações">
         <span class="modo3d" hidden>
@@ -37,7 +38,7 @@
           <button type="button" data-view="side">Lateral <small>ZY</small></button>
           <button type="button" data-view="top">Superior <small>XZ</small></button>
         </span>
-        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+        <button type="button" id="btnPng" class="com-ico" title="Salvar a imagem atual como PNG" aria-label="Salvar PNG"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg><span class="so-largo">Salvar PNG</span></button>
       </div>
       <div class="legend" id="legend">
         <div class="lg-title"><b>Tração T</b> <span>(N)</span></div>
@@ -142,9 +143,9 @@
   </aside>
 </main>
 
-<script src="analitico_solver.js?v=20261104d"></script>
-<script src="analitico.js?v=20261104d"></script>
-<script src="codigos.js?v=20261104d" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js?v=20261104d"></script>
+<script src="analitico_solver.js?v=20261105f"></script>
+<script src="analitico.js?v=20261105f"></script>
+<script src="codigos.js?v=20261105f" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261105f"></script>
 </body>
 </html>

@@ -318,9 +318,11 @@ function lerTema() {
   };
 }
 const btnCena = $('#btnCena');
+const ICO_CENA = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 7.5 21M12 3l4.5 18M5 8h14M9.9 11.5h4.2M8.7 16.5h6.6"/></svg>';
+const ICO_ANALISE = '<svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5v15h14.5M9 15.5v-4M13 15.5V8M17 15.5v-6"/></svg>';
 function atualizarBtnCena() {
   const on = S.cena === 'cenario';
-  btnCena.textContent = on ? '📊 Análise' : '🗼 Cena';
+  btnCena.innerHTML = on ? ICO_ANALISE + 'Análise' : ICO_CENA + 'Cena';
   btnCena.title = on ? 'Voltar ao modo de análise técnica' : 'Ver cena com torres, céu e terreno';
   btnCena.classList.toggle('on', on);
 }
@@ -1752,12 +1754,12 @@ let acc = 0, tPrev = 0;
 function tocar() {
   if (S.f >= ULT) definirFrame(0);
   S.play = true; acc = 0; tPrev = 0;
-  $('#btnPlay').textContent = '⏸'; $('#btnPlay').setAttribute('aria-label', 'Pausar');
+  $('#btnPlay').classList.add('tocando'); $('#btnPlay').setAttribute('aria-label', 'Pausar');
   requestAnimationFrame(loop);
 }
 function parar() {
   S.play = false;
-  $('#btnPlay').textContent = '▶'; $('#btnPlay').setAttribute('aria-label', 'Reproduzir');
+  $('#btnPlay').classList.remove('tocando'); $('#btnPlay').setAttribute('aria-label', 'Reproduzir');
 }
 function loop(t) {
   if (!S.play) return;

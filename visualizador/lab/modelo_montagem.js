@@ -107,30 +107,36 @@ function manchasVert(n, eixo, sinal, c, u0, u1, z0, z1, rMin, rMax, sem) {
 // ---------------------------------------------------------------- suporte de aço (mesinha)
 // Origem no centro da base, no chão. Tampo quadrado de chapa grossa, 4 pernas redondas,
 // quadro de cantoneiras sob o tampo e chapa de base. pontos.amarracao = furo na borda +X do tampo.
-// Grampo em C (sargento) prendendo a borda do tampo: no plano XZ local, com a abertura voltada para −X
-// (para dentro do tampo) e o dorso em +X, fora da chapa. Do braço de baixo pende um gancho e um
-// esticador; 'canto' = olhal de baixo do esticador (x local, 0, z).
-function grampo(H, e) {
-  const corpo = G.vazia(), est = G.vazia(), xd = 34; // dorso a 34 mm da borda (para fora)
-  const zt = H, zb = H - e;
-  G.juntar(corpo, caixaEm(xd - 8, -7, zb - 62, xd + 8, 7, zt + 52));         // dorso
-  G.juntar(corpo, caixaEm(-40, -7, zt + 36, xd, 7, zt + 52));               // braço de cima
-  G.juntar(corpo, caixaEm(-36, -9, zt, -20, 9, zt + 36));                  // mandíbula fixa
-  G.juntar(corpo, caixaEm(-40, -8, zb - 62, xd, 8, zb - 46));               // braço de baixo
-  G.juntar(corpo, G.barra([-28, 0, zb - 110], [-28, 0, zb - 6], 5, 12));    // fuso
-  G.juntar(corpo, T(G.cilindro(10, 0, 6, 16), M.trans(-28, 0, zb - 6)));   // sapata
-  G.juntar(corpo, G.barra([-58, 0, zb - 106], [2, 0, zb - 106], 3.5, 10));  // manípulo em T
-  // gancho saindo do braço de baixo, junto ao dorso, e esticador
-  const zg = zb - 62;
-  G.juntar(est, T(G.toro(13, 3, 18, 6), M.trans(xd, 0, zg - 14), M.rotX(Math.PI / 2)));
-  const z1 = zg - 30, z2 = z1 - 120;
-  G.juntar(est, T(G.toro(9, 3, 16, 6), M.trans(xd, 0, z1 - 6), M.rotY(0), M.rotX(0)));   // olhal de cima (gira 90°)
-  G.juntar(est, G.barra([xd, 0, z1 - 15], [xd, 0, z1 - 40], 3.5, 10));
-  for (const s of [-1, 1]) G.juntar(est, G.barra([xd + s * 9, 0, z1 - 38], [xd + s * 9, 0, z2 + 38], 3, 10)); // corpo aberto
-  G.juntar(est, G.barra([xd - 11, 0, z1 - 38], [xd + 11, 0, z1 - 38], 4, 10), G.barra([xd - 11, 0, z2 + 38], [xd + 11, 0, z2 + 38], 4, 10));
-  G.juntar(est, G.barra([xd, 0, z2 + 40], [xd, 0, z2 + 12], 3.5, 10));
-  G.juntar(est, T(G.toro(9, 3, 16, 6), M.trans(xd, 0, z2), M.rotX(Math.PI / 2)));      // olhal de baixo
-  return { corpo, esticador: est, canto: [xd, 0, z2 - 9] };
+// Grampo em C (foto 5_montagem_final/fixacao_suporte_grampo_celula_2): a ponta de cima entra num furo do
+// tampo, o corpo em C passa por fora da borda e o fuso rosqueado sai na horizontal, para fora do tampo,
+// com o manípulo em T na ponta. No fuso: barbante enrolado e um olhal forjado pendurado, onde se prende o
+// olhal de cima da célula de carga 2. Construído com a borda em y = −L/2 e o fuso apontando para −Y;
+// x0 = posição ao longo da borda, saida = distância (mm) do olhal forjado à borda, para fora.
+// Medidas estimadas pela foto (não medidas): fuso Ø16, olhal forjado Ø40 externo, corpo 30 × 14.
+// pontos.gancho = centro do anel onde o olhal de cima da célula se prende.
+function grampo(L, H, e, x0, saida) {
+  const corpo = G.vazia(), fuso = G.vazia(), olh = G.vazia(), barb = G.vazia();
+  const yb = -L / 2, yd = yb - 36, zt = H, zf = H - e - 38; // zf = eixo do fuso
+  const yFuro = yb + 62;
+  G.juntar(corpo, caixaEm(x0 - 7, yFuro - 8, zt - 12, x0 + 7, yFuro + 8, zt + 6));       // ponta no furo do tampo
+  G.juntar(corpo, caixaEm(x0 - 8, yd - 14, zt + 6, x0 + 8, yFuro + 10, zt + 30));        // braço de cima, sobre o tampo
+  G.juntar(corpo, caixaEm(x0 - 9, yd - 15, zf - 22, x0 + 9, yd + 1, zt + 30));           // dorso, fora da borda
+  G.juntar(corpo, caixaEm(x0 - 8, yd - 15, zf - 22, x0 + 8, yb + 4, zf - 6));            // braço de baixo (encosta na borda)
+  G.juntar(corpo, T(G.cilindro(13, 0, 18, 18), M.trans(x0, yd - 15, zf), M.rotX(Math.PI / 2))); // bucha do fuso
+  const yPonta = yb - Math.max(saida + 45, 90);
+  G.juntar(fuso, G.barra([x0, yb + 2, zf], [x0, yPonta, zf], 8, 14));                     // fuso rosqueado
+  for (let y = yd - 22; y > yPonta + 6; y -= 5) G.juntar(fuso, T(G.toro(8, 1.1, 14, 4), M.trans(x0, y, zf), M.rotX(Math.PI / 2))); // filetes
+  G.juntar(fuso, G.barra([x0 - 65, yPonta - 6, zf], [x0 + 65, yPonta - 6, zf], 5, 10));   // manípulo em T
+  G.juntar(fuso, T(G.cilindro(9, 0, 12, 14), M.trans(x0, yPonta + 2, zf), M.rotX(Math.PI / 2)));
+  // olhal forjado pendurado no fuso (anel no plano YZ) e o elo de baixo onde entra a célula
+  const yo = yb - saida, rO = 17, fO = 4.5;
+  G.juntar(olh, T(G.toro(rO, fO, 22, 8), M.trans(x0, yo, zf - rO + 8), M.rotY(Math.PI / 2)));
+  G.juntar(olh, T(G.esfera(7, 12, 8), M.trans(x0, yo, zf - 2 * rO + 4), M.esc(1, 1, 1.4)));
+  // barbante enrolado no fuso, dos dois lados do olhal, com as pontas caindo
+  for (const dy of [-26, -18, -10, 10, 18, 26, 34]) G.juntar(barb, T(G.toro(10.5, 1.3, 16, 5), M.trans(x0, yo + dy, zf), M.rotX(Math.PI / 2), M.rotY(dy * 0.03)));
+  G.juntar(barb, G.tubo([[x0 + 8, yo + 30, zf - 6], [x0 + 14, yo + 34, zf - 60], [x0 + 10, yo + 40, zf - 150], [x0 + 18, yo + 36, zf - 230]], 1.3, 5));
+  G.juntar(barb, G.tubo([[x0 - 6, yo + 22, zf - 8], [x0 - 12, yo + 16, zf - 80], [x0 - 6, yo + 20, zf - 190], [x0 - 14, yo + 10, zf - 330]], 1.3, 5));
+  return { corpo, fuso, olhal: olh, barbante: barb, gancho: [x0, yo, zf - 2 * rO - 2] };
 }
 
 function suporte(op = {}) {
@@ -171,18 +177,22 @@ function suporte(op = {}) {
   if (op.barbante) G.juntar(barb, G.tubo([[xb + 12, 0, H + 0.8], [L / 2 - 2, 0, H + 1.2], [L / 2 + 1.2, 0, H - 3], [L / 2 + 1.2, 0, H - e + 2], [L / 2 - 3, 0, H - e - 1.2], [xb + 14, 0, H - e - 1.2]], 0.9, 6));
   if (op.barbante) G.juntar(barb, G.tubo([[L / 2 + 1.2, 2, H - e + 4], [L / 2 + 8, 3, H - e - 50], [xa - 4, 2, za + 30], [xa, 0, za + 4]], 0.8, 6));
   if (op.barbante) G.juntar(barb, G.tubo([[L / 2 + 1.2, -2, H - e + 6], [L / 2 + 16, -4, H - e - 60], [xa + 3, -2, za + 26], [xa, 0, za + 4]], 0.8, 6));
-  // grampo em C no canto do tampo (op.cantoGrampo = [sx, sy], padrão [+1, +1]) e esticador pendurado
-  const [gx, gy] = op.cantoGrampo || [1, 1];
-  const gr = grampo(H, e);
-  const ang = Math.atan2(gy, gx), cx = gx * (L / 2 - 18), cy = gy * (L / 2 - 18);
-  const trG = M.cadeia(M.trans(cx, cy, 0), M.rotZ(ang));
+  // grampo em C numa borda do tampo. op.grampo = { borda: k (a borda −Y girada k × 90° em torno de Z:
+  // 0 = −Y, 1 = +X, 2 = +Y, 3 = −X), x: posição ao longo da borda, saida: mm do olhal para fora } ou false
+  const og = op.grampo === false ? null : Object.assign({ borda: 0, x: 0, saida: 120 }, op.grampo || {});
   const partes = [P('aço', mat('acoEnferrujado'), aco), P('pernas', mat('acoBarra'), barras), P('furos e porcas', mat('acoEscuro'), escuro), P('ferrugem', mat('ferrugem'), ferr)];
-  if (barb.pos.length) partes.push(P('barbante', mat('barbante'), barb));
-  if (op.grampo !== false) {
-    partes.push(P('grampo', mat('zincado', { cor: [0.62, 0.60, 0.55] }), G.transformar(gr.corpo, trG)), P('esticador', mat('galvanizado'), G.transformar(gr.esticador, trG)));
+  const pontos = { amarracao: [xa, 0, za], topo: [0, 0, H] };
+  if (og) {
+    const gr = grampo(L, H, e, og.x, og.saida), trG = M.rotZ(og.borda * Math.PI / 2);
+    G.juntar(barb, G.transformar(gr.barbante, trG));
+    partes.push(P('grampo', mat('zincado', { cor: [0.55, 0.47, 0.30], metal: 0.7, rug: 0.5 }), G.transformar(gr.corpo, trG)),
+      P('fuso', mat('zincado', { cor: [0.60, 0.56, 0.46] }), G.transformar(gr.fuso, trG)), P('olhal forjado', mat('galvanizado', { rug: 0.5 }), G.transformar(gr.olhal, trG)));
+    const g = gr.gancho, a = og.borda * Math.PI / 2;
+    pontos.gancho = [g[0] * Math.cos(a) - g[1] * Math.sin(a), g[0] * Math.sin(a) + g[1] * Math.cos(a), g[2]];
+    pontos.canto = pontos.gancho;
   }
-  const c = gr.canto, canto = [cx + c[0] * Math.cos(ang), cy + c[0] * Math.sin(ang), c[2]];
-  return { partes, pontos: { amarracao: [xa, 0, za], topo: [0, 0, H], canto } };
+  if (barb.pos.length) partes.push(P('barbante', mat('barbante'), barb));
+  return { partes, pontos };
 }
 
 // ---------------------------------------------------------------- poste listrado com base de concreto
@@ -214,10 +224,12 @@ function postePeso(op = {}) {
     const z = hb + 30 + r() * (H - hb - 80), a = r() * 6.28, sz = 8 + r() * 40, sa = 0.3 + r() * 0.8;
     G.juntar(sujo, G.revolucao([[rt + 0.4, z], [rt + 0.4, z + sz]], 8, { a0: a, a1: a + sa }));
   }
-  // duas argolas soldadas no topo, viradas para os lados
-  const ra = 30, fa = 3.2;
+  // argolas soldadas no topo (op.argolas = 1 ou 2; a primeira fica em +X). Na montagem final há uma só,
+  // de ~100 mm (foto 2_montagem/corrente_fixacao_no_peso; diâmetro estimado pela foto)
+  const ra = op.raioArgola || 30, fa = op.raioArgola ? 4 : 3.2;
   const arg = (s) => T(G.toro(ra, fa, 28, 8), M.trans(s * (rt + ra - 4), 0, H - 28), M.rotX(Math.PI / 2), M.rotY(s * 0.25));
-  G.juntar(aco, arg(1), arg(-1));
+  G.juntar(aco, arg(1));
+  if ((op.argolas || 2) > 1) G.juntar(aco, arg(-1));
   return {
     partes: [P('concreto', mat('concreto'), conc), P('aro da base', mat('aroBorracha'), aro), P('tubo laranja', mat('laranja'), lar),
       P('sujeira', mat('laranjaSujo'), sujo), P('fita preta', mat('fitaPreta'), fita), P('argolas', mat('acoEscuro'), aco)],
@@ -369,10 +381,49 @@ function celulaCarga(op = {}) {
   // olhais (parafuso com anel), anéis no plano XZ
   G.juntar(aco, olhal(10, 3.2, h - 2, h + 26));
   G.juntar(aco, T(olhal(10, 3.2, h - 2, h + 26), M.rotX(Math.PI)));
+  // número da célula escrito à mão em vermelho (fotos 1_equipamento/celula_de_carga_1_numerada e
+  // 5_montagem_final/fixacao_suporte_grampo_celula_2), resina branca sobre a saída do cabo e o cabo
+  const res = G.vazia(), fio = G.vazia();
+  if (op.numero) for (const sy of [-1, 1]) {
+    const l = letreiro(String(op.numero), 13, 0.4, 0.2);
+    // texto: X do texto para a direita de quem olha a face, Y do texto para cima, normal para fora (±Y)
+    const base = [-sy, 0, 0, 0, 0, 0, 1, 0, 0, sy, 0, 0, w - 12 + sy * l.larg / 2, sy * (e / 2 + 0.2), 0, 1];
+    G.juntar(ver, T(l.g, base, M.trans(0, -6.5, 0)));
+  }
+  for (const sy of [-1, 1]) G.juntar(res, T(G.caixaArred(16, 18, 1.2, 6, 3), M.trans(-w + 9, sy * (e / 2 + 0.5), 0), M.rotX(Math.PI / 2)));
+  G.juntar(res, T(G.esfera(5.5, 10, 8), M.trans(-w - 1, 0, 0), M.esc(0.8, 1.2, 1.4)));
+  G.juntar(fio, G.tubo([[-w - 2, 0, 0], [-w - 30, 0, -2], [-w - 60, 0, -12]], 2.6, 8));
   return {
-    partes: [P('corpo', mat('aluminioFosco'), alu), P('furos', mat('pretoAnod'), esc), P('etiqueta', mat('etiqueta'), eti), P('marca', mat('vermelho'), ver), P('olhais', mat('zincado'), aco)],
-    pontos: { topo: [0, 0, h + 26], base: [0, 0, -h - 26] },
+    partes: [P('corpo', mat('aluminioFosco'), alu), P('furos', mat('pretoAnod'), esc), P('etiqueta', mat('etiqueta'), eti), P('marca', mat('vermelho'), ver), P('olhais', mat('zincado'), aco),
+      P('resina', mat('etiqueta', { cor: [0.93, 0.90, 0.78], rug: 0.3 }), res), P('cabo', mat('fitaPreta'), fio)],
+    pontos: { topo: [0, 0, h + 26], base: [0, 0, -h - 26], cabo: [-w - 60, 0, -12] },
   };
+}
+
+// ---------------------------------------------------------------- amarrações de barbante e marcadores
+// nó das três correntes: bolo de barbante no ponto p, com as duas pontas soltas pendendo (foto
+// 5_montagem_final/tres_ramos_vista_do_perfil: ~0,2–0,3 m de barbante caindo do nó; estimado)
+function noBarbante(p) {
+  if (!Array.isArray(p)) p = [0, 0, 300];
+  const g = G.vazia(), r = rng(77);
+  G.juntar(g, T(G.esfera(9, 12, 8), M.trans(...p), M.esc(1.2, 1, 0.8)));
+  for (let k = 0; k < 4; k++) G.juntar(g, T(G.toro(9, 1.2, 14, 4), M.trans(...p), M.rotZ(r() * 3), M.rotX(0.6 + r() * 1.5)));
+  for (const [dx, dy, L] of [[6, 3, 230], [-4, -6, 300]]) {
+    const pts = []; for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push([p[0] + dx * (1 + 3 * t) + 10 * Math.sin(5 * t), p[1] + dy * (1 + 2 * t), p[2] - 6 - L * t]); }
+    G.juntar(g, G.tubo(pts, 1.1, 5));
+  }
+  return { partes: [P('barbante', mat('barbante'), g)], pontos: {} };
+}
+// marcador preso à corrente: base preta do marcador e duas voltas de barbante prendendo-a ao elo.
+// p = centro da esfera (medido), q = ponto da corrente logo abaixo (a esfera é desenhada por experimento.js)
+function presilhaMarcador(p, q, diam = 19) {
+  if (!Array.isArray(p)) { p = [0, 0, 330]; q = [0, 0, 300]; }
+  const d = [p[0] - q[0], p[1] - q[1], p[2] - q[2]], L = Math.hypot(...d) || 1, u = d.map((v) => v / L);
+  const base = G.barra(q, [p[0] - u[0] * diam * 0.42, p[1] - u[1] * diam * 0.42, p[2] - u[2] * diam * 0.42], 3.2, 10);
+  G.juntar(base, T(G.cilindro(5.5, 0, 3, 12), M.trans(...q.map((v, k) => v + u[k] * (L - diam * 0.55))), M.alinharZ(u)));
+  const b = G.vazia();
+  for (const a of [-0.5, 0.5]) G.juntar(b, T(G.toro(7.5, 1.1, 14, 4), M.trans(...q), M.alinharZ(u), M.rotX(Math.PI / 2 + a)));
+  return { partes: [P('base do marcador', mat('pretoAnod'), base), P('barbante', mat('barbante'), b)], pontos: {} };
 }
 
 // ---------------------------------------------------------------- marcador refletivo
@@ -586,6 +637,9 @@ const FONTE = {
   Q: [[0, 0, 0, 6], [0, 6, 4, 6], [4, 6, 4, 0], [4, 0, 0, 0], [2.5, 1.5, 4.5, -0.8]], R: [[0, 0, 0, 6], [0, 6, 4, 6], [4, 6, 4, 3], [4, 3, 0, 3], [1.5, 3, 4, 0]],
   S: [[4, 6, 0, 6], [0, 6, 0, 3], [0, 3, 4, 3], [4, 3, 4, 0], [4, 0, 0, 0]], T: [[0, 6, 4, 6], [2, 6, 2, 0]], U: [[0, 6, 0, 0], [0, 0, 4, 0], [4, 0, 4, 6]],
   Y: [[0, 6, 2, 3], [4, 6, 2, 3], [2, 3, 2, 0]], ' ': [],
+  G: [[4, 6, 0, 6], [0, 6, 0, 0], [0, 0, 4, 0], [4, 0, 4, 3], [4, 3, 2, 3]], O: [[0, 0, 0, 6], [0, 6, 4, 6], [4, 6, 4, 0], [4, 0, 0, 0]],
+  D: [[0, 0, 0, 6], [0, 6, 3, 6], [3, 6, 4, 4.5], [4, 4.5, 4, 1.5], [4, 1.5, 3, 0], [3, 0, 0, 0]], B: [[0, 0, 0, 6], [0, 6, 3.5, 6], [3.5, 6, 3.5, 3], [0, 3, 4, 3], [4, 3, 4, 0], [4, 0, 0, 0]],
+  1: [[0.6, 4.8, 2, 6], [2, 6, 2, 0]], 2: [[0, 6, 4, 6], [4, 6, 4, 3], [4, 3, 0, 3], [0, 3, 0, 0], [0, 0, 4, 0]],
 };
 // texto no plano XY (normal +Z), começando em (0,0), altura h; devolve malha e largura
 function letreiro(txt, h, esp = 0.6, traco = 0.16) {
@@ -847,5 +901,7 @@ function cabo(pontosIn, op = {}) {
 }
 
 Object.assign(window.LAB_MODELOS, { suporte, postePeso, perfilParede, corrente, celulaCarga, lFrame, wand, marcador, mesaPallet, caixasPapelao, tabuasEncostadas,
-  notebook, syncUnit, baseCelulas, mesaApoio, cabo });
+  notebook, syncUnit, baseCelulas, mesaApoio, cabo, noBarbante, presilhaMarcador });
+// para modelo_entorno.js (mesmo estilo: materiais, letreiro e helpers)
+window.LAB_MODELOS._util = { MAT, mat, caixaEm, letreiro, rng, hexa, poligono, estadio, anelTubo, P, T };
 })();

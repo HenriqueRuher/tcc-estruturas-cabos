@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulação Ansys — Catenária 3D</title>
-<link rel="stylesheet" href="style.css?v=20261104d">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=20261105f">
 </head>
 <body>
 
 <header class="top">
   <div>
-    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Catenária 3D <span class="tag">Simulação Ansys</span></h1>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início" aria-label="Voltar ao início"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a> Catenária 3D <span class="tag">Simulação Ansys</span></h1>
     <p class="sub">Visualizador da simulação ANSYS · 3 cabos ligados no nó P · BEAM188 · 120 elementos · <span id="nSub"></span> substeps</p>
   </div>
   <div class="hdr-btns">
@@ -22,8 +23,8 @@
         <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 21 H29 M3 21 V3" class="eixo"/><path d="M6 6 C 11 22, 22 22, 27 8"/><rect x="4.5" y="4.5" width="3" height="3"/><rect x="25.5" y="6.5" width="3" height="3"/></svg>
       </button>
     </div>
-    <button id="btnCena" class="ghost" type="button" title="Alternar entre modo análise e cena com torres" aria-label="Alternar cena">🗼 Cena</button>
-    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+    <button id="btnCena" class="ghost com-ico" type="button" title="Ver cena com torres, céu e terreno"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 7.5 21M12 3l4.5 18M5 8h14M9.9 11.5h4.2M8.7 16.5h6.6"/></svg>Cena</button>
+    <button id="btnTema" class="ghost ico" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg></button>
   </div>
 </header>
 
@@ -38,7 +39,7 @@
         <button type="button" data-view="front">Frontal <small>XY</small></button>
         <button type="button" data-view="side">Lateral <small>ZY</small></button>
         <button type="button" data-view="top">Superior <small>XZ</small></button>
-        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+        <button type="button" id="btnPng" class="com-ico" title="Salvar a imagem atual como PNG" aria-label="Salvar PNG"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg><span class="so-largo">Salvar PNG</span></button>
       </div>
 
       <div class="legend" id="legend">
@@ -52,9 +53,9 @@
     </div>
 
     <div class="timeline">
-      <button id="btnPrev" type="button" class="ico" title="Passo anterior (←)" aria-label="Passo anterior">⏮</button>
-      <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir">▶</button>
-      <button id="btnNext" type="button" class="ico" title="Próximo passo (→)" aria-label="Próximo passo">⏭</button>
+      <button id="btnPrev" type="button" class="ico" title="Passo anterior (←)" aria-label="Passo anterior"><svg class="bi cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6.5v11"/><path d="M18 6.5v11l-8-5.5z"/></svg></button>
+      <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir"><svg class="bi cheio i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5v13l10-6.5z"/></svg><svg class="bi i-pausa" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6v12M15.5 6v12" stroke-width="2.8"/></svg></button>
+      <button id="btnNext" type="button" class="ico" title="Próximo passo (→)" aria-label="Próximo passo"><svg class="bi cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 6.5v11"/><path d="M6 6.5v11l8-5.5z"/></svg></button>
       <input id="slider" type="range" min="0" max="25" step="1" value="25" aria-label="Substep">
       <div class="tl-info">
         <b id="tlPasso"></b>
@@ -127,7 +128,7 @@
       <div class="pgrid" id="casoInfo"></div>
       <p class="note"><b>Posição:</b> fração do comprimento do cabo, a partir da ancoragem. <b>Nó P final:</b> equilíbrio do nó de ligação. <b>P desloca:</b> deslocamento de P em relação ao modelo sem força. <b>N máx.:</b> maior força axial no cabo carregado.</p>
       <p class="note"><b>T₀ = N·cos φ:</b> componente horizontal da tração, constante em cada trecho sob cargas verticais. A força concentrada aumenta T₀ em todos os trechos, pois o nó P redistribui o esforço.</p>
-      <p class="note warn" id="casoAviso" hidden>⚠ elemento em compressão neste caso — hipótese de rigidez à flexão nula não sustentada.</p>
+      <p class="note warn" id="casoAviso" hidden>Elemento em compressão neste caso: hipótese de rigidez à flexão nula não sustentada.</p>
       <p class="note" id="casoNota"></p>
     </section>
 
@@ -180,12 +181,12 @@
   Dados exportados de <code>catenaria3d.inp</code> por <code>exportar_resultados.inp</code> · gerados em <span id="gerado"></span>
 </footer>
 
-<script src="dados.js?v=20261104d"></script>
-<script src="casos.js?v=20261104d" onerror="window.CASOS=null"></script>
-<script src="malhas.js?v=20261104d" onerror="window.MALHAS=null"></script>
-<script src="app.js?v=20261104d"></script>
-<script src="notas.js?v=20261104d"></script>
-<script src="codigos.js?v=20261104d" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js?v=20261104d"></script>
+<script src="dados.js?v=20261105f"></script>
+<script src="casos.js?v=20261105f" onerror="window.CASOS=null"></script>
+<script src="malhas.js?v=20261105f" onerror="window.MALHAS=null"></script>
+<script src="app.js?v=20261105f"></script>
+<script src="notas.js?v=20261105f"></script>
+<script src="codigos.js?v=20261105f" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261105f"></script>
 </body>
 </html>

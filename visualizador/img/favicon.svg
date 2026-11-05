@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    .f { fill: #fcfcfb; } .a { fill: #0b0b0b; } .c { stroke: #2a78d6; }
+    @media (prefers-color-scheme: dark) { .f { fill: #1a1a19; } .a { fill: #ffffff; } .c { stroke: #3987e5; } }
+  </style>
+  <rect class="f" width="32" height="32" rx="7"/>
+  <path class="c" d="M6 9.5C11 26 22 26 26.5 12" fill="none" stroke-width="3.2" stroke-linecap="round"/>
+  <rect class="a" x="3" y="6" width="6" height="6" rx="1"/>
+  <rect class="a" x="23.5" y="8.5" width="6" height="6" rx="1"/>
+</svg>

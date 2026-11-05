@@ -1,0 +1,34 @@
+Ansys: 88 subpassos gravados, fator de carga final 1.0000
+nó real [320.7 130.  259.6]
+  Analítico [319.8 127.2 255.9]  d = [-0.9 -2.8 -3.7]  |d| = 4.7 mm
+  Ansys     [317.8 125.1 262. ]  d = [-2.9 -5.   2.5]  |d| = 6.3 mm
+
+marcador    arco |  erro normal an/ansys |  mesmo arco an/ansys [mm]
+C1_03        336 |       7.3       8.1   |      7.4       8.2
+C1_02        843 |       4.0       3.5   |      4.0       3.5
+C1_01       1095 |       3.3       3.5   |      3.3       3.5
+C3_03        285 |       7.5       8.2   |      7.7       8.4
+C3_02        620 |       6.7       7.4   |      6.7       7.4
+C3_01        864 |       4.1       3.5   |      4.1       3.5
+C2_03        356 |       4.9       4.1   |      5.3       4.4
+C2_02        859 |       4.3       4.1   |      4.3       4.1
+C2_01       1409 |       3.5       3.5   |      3.5       3.5
+  RMS Analítico: normal 5.3 mm (máx 7.5); mesmo arco 5.4 mm (máx 7.7)
+  RMS Ansys: normal 5.5 mm (máx 8.2); mesmo arco 5.5 mm (máx 8.4)
+
+        T0 real (q·a)  T0 analítico  T0 Ansys meio  Ansys junto a P  [N]
+A        2.681 ± 0.085        2.7403         2.7471           2.5251
+B        2.607 ± 0.155        2.8042         2.8091           2.8362
+C        1.885 ± 0.037        1.8756         1.8796           1.6091
+
+      T fixação analítico  |R| Ansys  N 1o elem Ansys     V an  R_y Ansys  [N]
+A                  7.8705     7.8742           7.7241   7.3781     7.3792   (inferida da geometria real: 7.792)
+B                  7.6652     7.6678           7.5536   7.1339     7.1344   (inferida da geometria real: 7.371)
+C                  5.8772     5.8772           5.7288   5.5699     5.5682   (inferida da geometria real: 5.872)
+soma das verticais: analítico 20.0818 N, Ansys 20.0818 N; peso suspenso (balança) 20.0818 N = 2.0478 kgf
+comprimento do trecho A no Ansys: 1.11003 m
+comprimento do trecho B no Ansys: 0.89400 m
+comprimento do trecho C no Ansys: 1.42501 m
+salvo: MEF_Experimento_Perfis
+salvo: MEF_Experimento_Erros
+salvo: MEF_Experimento_Tracao

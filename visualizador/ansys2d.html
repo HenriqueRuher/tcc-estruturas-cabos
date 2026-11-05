@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Simulação Ansys — Casos 2D</title>
-<link rel="stylesheet" href="style.css?v=20261104d">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=20261105f">
 </head>
 <body>
 
 <header class="top">
   <div>
-    <h1><a class="voltar" href="index.html" title="Voltar ao início">←</a> Casos 2D <span class="tag">Simulação Ansys</span></h1>
+    <h1><a class="voltar" href="index.html" title="Voltar ao início" aria-label="Voltar ao início"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></a> Casos 2D <span class="tag">Simulação Ansys</span></h1>
     <p class="sub">Casos dos Capítulos 3 e 4 do TCC simulados no ANSYS com o mesmo modelo do caso 3D · BEAM188 · EI = 15,7 N·m² · 40 elementos por trecho</p>
   </div>
   <div class="hdr-btns">
@@ -22,16 +23,16 @@
         <svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 21 H29 M3 21 V3" class="eixo"/><path d="M6 6 C 11 22, 22 22, 27 8"/><rect x="4.5" y="4.5" width="3" height="3"/><rect x="25.5" y="6.5" width="3" height="3"/></svg>
       </button>
     </div>
-    <button id="btnTema" class="ghost" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+    <button id="btnTema" class="ghost ico" type="button" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" stroke="none"/></svg></button>
   </div>
 </header>
 
 <main class="layout">
   <section class="stage" aria-label="Gráfico">
-    <div class="viewport" id="viewport">
+    <div class="viewport legenda-faixa" id="viewport">
       <canvas id="cv" role="img" aria-label="Perfil do cabo: resultado do ANSYS e curva analítica"></canvas>
       <div class="toolbar" role="group" aria-label="Ações">
-        <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
+        <button type="button" id="btnPng" class="com-ico" title="Salvar a imagem atual como PNG" aria-label="Salvar PNG"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"/></svg><span class="so-largo">Salvar PNG</span></button>
       </div>
       <div class="legend" id="legend">
         <div class="lg-title"><b id="lgName">Força axial N</b> <span>(N)</span></div>
@@ -108,10 +109,10 @@
   Resultados de <code>ansys/casos_2d.py</code> · gerados em <span id="gerado"></span>
 </footer>
 
-<script src="casos2d.js?v=20261104d" onerror="window.CASOS2D=null"></script>
-<script src="ansys2d.js?v=20261104d"></script>
-<script src="notas.js?v=20261104d"></script>
-<script src="codigos.js?v=20261104d" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js?v=20261104d"></script>
+<script src="casos2d.js?v=20261105f" onerror="window.CASOS2D=null"></script>
+<script src="ansys2d.js?v=20261105f"></script>
+<script src="notas.js?v=20261105f"></script>
+<script src="codigos.js?v=20261105f" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261105f"></script>
 </body>
 </html>

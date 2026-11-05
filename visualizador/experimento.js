@@ -435,7 +435,7 @@ function desenharGrade() {
 const cv3d = $('#cv3d'), HINT_ORBITA = $('#hint3d').textContent;
 const LAB = { cena: null, estado: 'nada', grupos: null, falhou: false, bolas: [], ultimo: [] };
 const DIAM_MARCADOR = 19; // mm, marcador refletivo esférico do Qualisys
-const SCRIPTS_LAB = ['lab/lab_geom.js', 'lab/modelo_camera.js', 'lab/modelo_montagem.js', 'lab/cena3d.js', 'lab/cena_lab.js', 'lab/ambiente_dados.js', 'lab/proxies.js', 'lab/sala.js'];
+const SCRIPTS_LAB = ['lab/lab_geom.js', 'lab/modelo_camera.js', 'lab/modelo_montagem.js', 'lab/modelo_entorno.js', 'lab/cena3d.js', 'lab/cena_lab.js', 'lab/ambiente_dados.js', 'lab/proxies.js', 'lab/sala.js'];
 const labAtivo = () => S.lab && !!LAB.cena && !cv3d.hidden;
 const panoAtivo = () => S.pano && labAtivo();
 const PANO_FOV = 70 * Math.PI / 180; // FOV vertical com zoom 1
@@ -457,7 +457,7 @@ function irParaPano() {
 }
 function salvarLab() { try { localStorage.setItem('qtm-lab', JSON.stringify({ lab: S.lab, montagem: S.montagem })); } catch (e) { /* sem storage */ } }
 function carregarScript(src) {
-  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105e'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
+  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105g'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
 }
 async function ligarLab() {
   $('#btnPano').hidden = !S.lab || LAB.estado === 'falhou';
@@ -499,11 +499,12 @@ function remontarLab() {
   const marc = S.d.est.map((e, m) => ({ nome: S.d.nomes[m], p: e.media })).filter((m) => m.p && m.p.every(Number.isFinite));
   const res = window.LAB_CENA.montar(LAB.cena, alvoLab(), marc);
   LAB.grupos = res.grupos; LAB.visada = res.visada || null; LAB.comprimentos = res.comprimentos || null;
-  // vista isométrica do laboratório: de frente para a parede dos perfis, pela esquerda (como nas fotos)
+  // vista isométrica do laboratório: para a parede dos perfis, pela esquerda, a 45° (como em
+  // montagem_final_lateral_cameras); mais de frente, o ponto de vista sairia da sala pela parede da porta
   LAB.iso = null;
   if (res.parede) {
-    const P = res.parede, f = [-P.n[0] - 0.55 * P.s[0], -P.n[1] - 0.55 * P.s[1]];
-    LAB.iso = [Math.atan2(f[0], f[1]), 0.3];
+    const P = res.parede, f = [-P.n[0] - P.s[0], -P.n[1] - P.s[1]];
+    LAB.iso = [Math.atan2(f[0], f[1]), 0.42];
     if (document.querySelector('.toolbar button[data-view="iso"]').classList.contains('on')) { S.yaw = LAB.iso[0]; S.pitch = LAB.iso[1]; }
   }
   statusVisada(); statusCorrentes();
@@ -521,16 +522,19 @@ function statusVisada() {
     ? `Atenção: ${faltam.map((c) => `câmera ${c.i + 1} não vê ${c.k} alvo(s)`).join('; ')}. Ligue "linhas de visada" para ver quais.`
     : `Visada conferida: as ${v.length} câmeras veem os ${n} alvos (todos no campo de visão e sem nada no caminho).`;
 }
-// comprimento estimado das correntes (curva pelos marcadores + trecho até a fixação)
+// correntes: comprimentos medidos (trena/balança) e, separado, o trecho estimado pelos marcadores
 function statusCorrentes() {
-  const el = $('#labCorrentes'), c = LAB.comprimentos;
-  if (!c || !labAtivo()) { el.hidden = true; return; }
-  const rot = { perfil: 'braço do perfil', suporte: 'suporte', poste: 'poste' };
-  const cm = (v) => fmt(v / 1000, 2);
+  const el = $('#labCorrentes'), c = LAB.comprimentos, CR = window.LAB_CENA && window.LAB_CENA.CONFIG.correntes;
+  if (!c || !CR || !labAtivo()) { el.hidden = true; return; }
+  const m = (v, d = 3) => fmt(v / 1000, d), k = Object.fromEntries(c.map((x) => [x.nome, x]));
+  const g = CR.grossa, md = CR.media, lP = g.comp * g.eta, lS = g.comp - lP;
   el.hidden = false;
-  el.innerHTML = '<b>Comprimento estimado das correntes:</b> '
-    + c.map((k) => `${rot[k.nome]} ≈ ${cm(k.total)} m`).join(' · ')
-    + ` · soma ≈ ${cm(c.reduce((t, k) => t + k.total, 0))} m. <span class="k">Medido pelos marcadores do nó ao último marcador de cada cabo (${c.map((k) => cm(k.medido)).join(' / ')} m); o trecho até a fixação (poucos cm) é estimado.</span>`;
+  el.innerHTML = `<b>Correntes (medidas):</b> grossa ${m(g.comp)} m (${fmt(g.kgm, 3)} kg/m), do braço do perfil ao suporte passando pelo nó `
+    + `(${m(lP)} m perfil–nó + ${m(lS)} m nó–suporte) · média ${m(md.comp)} m (${fmt(md.kgm, 4)} kg/m), ${m(md.efetivo)} m entre o poste e o nó `
+    + `e ${m(md.comp - md.efetivo)} m sobrando, enrolados/pendurados no topo do poste. `
+    + `<span class="k">Pelos marcadores (curva do nó ao último marcador): perfil ${k.perfil.ramo} ${m(k.perfil.medido, 2)} m · suporte ${k.suporte.ramo} ${m(k.suporte.medido, 2)} m `
+    + `(${k.perfil.ramo} + ${k.suporte.ramo} = ${m(k.perfil.medido + k.suporte.medido, 2)} m de ${m(g.comp, 3)} m) · poste ${k.poste.ramo} ${m(k.poste.medido, 2)} m de ${m(md.efetivo, 3)} m. `
+    + `Na cena, cada corrente continua além do último marcador até fechar o comprimento medido.</span>`;
 }
 function visibilidadeLab() {
   if (!LAB.grupos) return;
@@ -887,10 +891,10 @@ function definirQuadro(f, pausar) {
 function tocar() {
   if (!S.d) return;
   if (S.f >= S.d.nF - 1) S.f = 0;
-  S.play = true; $('#btnPlay').textContent = '⏸'; $('#btnPlay').setAttribute('aria-label', 'Pausar');
+  S.play = true; $('#btnPlay').classList.add('tocando'); $('#btnPlay').setAttribute('aria-label', 'Pausar');
   ultimo = performance.now(); acum = 0; requestAnimationFrame(loop);
 }
-function parar() { S.play = false; $('#btnPlay').textContent = '▶'; $('#btnPlay').setAttribute('aria-label', 'Reproduzir'); }
+function parar() { S.play = false; $('#btnPlay').classList.remove('tocando'); $('#btnPlay').setAttribute('aria-label', 'Reproduzir'); }
 function loop(agora) {
   if (!S.play) return;
   const d = S.d, dt = (agora - ultimo) / 1000; ultimo = agora;

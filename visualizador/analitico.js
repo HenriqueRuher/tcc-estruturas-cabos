@@ -130,7 +130,7 @@ function marcarPresetSeMudou() {
 
 function atualizarRes2D() {
   const r = S.r2, box = $('#res2d'), tb = $('#tbRes2d'), er = $('#erro2d');
-  er.hidden = !S.erro2; er.textContent = S.erro2 ? '⚠ ' + S.erro2 : '';
+  er.hidden = !S.erro2; er.textContent = S.erro2 || '';
   $('#notaParab').textContent = '';
   if (!r) { box.innerHTML = ''; tb.innerHTML = ''; $('#nota2d').innerHTML = ''; return; }
   const baixo = r.baixo, vert = r.vertices[0];
@@ -399,7 +399,7 @@ function calcular3D() {
 }
 function atualizarRes3D() {
   const r = S.r3, box = $('#res3d'), tb = $('#tbRes3d'), er = $('#erro3d');
-  er.hidden = !S.erro3; er.textContent = S.erro3 ? '⚠ ' + S.erro3 : '';
+  er.hidden = !S.erro3; er.textContent = S.erro3 || '';
   if (!r) { box.innerHTML = ''; tb.innerHTML = ''; return; }
   const cel = (l, v, u = '') => `<div><span class="lbl">${l}</span><br><span class="val">${v}${u ? ` <small>${u}</small>` : ''}</span></div>`;
   box.innerHTML = cel('x<sub>P</sub>', fmt(r.P[0], 3), 'm') + cel('y<sub>P</sub>', fmt(r.P[1], 3), 'm') + cel('z<sub>P</sub>', fmt(r.P[2], 3), 'm')
