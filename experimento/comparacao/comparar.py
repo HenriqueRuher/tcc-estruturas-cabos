@@ -17,6 +17,15 @@ A posição de arco de cada marcador ao longo da corrente não foi medida. Por i
   * erro no mesmo arco: o arco do marcador a partir do nó é estimado pela catenária ajustada
     aos dados (projeção do marcador nela); toma-se o ponto do modelo com esse mesmo arco a partir
     do nó do modelo. Inclui o deslizamento ao longo do cabo, mas herda a incerteza desse arco.
+
+Qual valor medido é o "real"
+----------------------------
+O "real" é um QUADRO medido, não a média: o quadro do Qualisys em que os 10 pontos (nó + 9 marcadores)
+ficam mais perto do modelo analítico (menor RMS das distâncias; quadro_mais_proximo, abaixo). O ensaio é
+estático e os marcadores variam décimos de milímetro entre quadros, então a escolha muda o erro em
+décimos de milímetro; o resultado com a mediana do ensaio é impresso e gravado junto, para ficar à vista.
+Os modelos NÃO mudam com essa escolha: as fixações e os comprimentos que entram neles continuam vindo do
+ajuste feito com a mediana (ajuste_ramos.py), assim como o arco de cada marcador e as trações inferidas.
 """
 import csv
 import json
@@ -101,22 +110,54 @@ def no_arco(curva, s):
     return np.array([np.interp(s, ss, curva[:, k]) for k in range(3)])
 
 
+def distancias(P, modelo):
+    """distância de cada ponto medido ao modelo [mm]: o nó ao nó do modelo e cada marcador à curva do seu ramo.
+    P: dicionário nome -> posição. -> vetor (10,), nó primeiro e depois os marcadores na ordem de TRAMOS"""
+    d = [np.linalg.norm(P['centro'] - modelo['P'])]
+    for k, (ramo, sc, q) in TRAMOS.items():
+        for j in (3, 2, 1):
+            p = P[f'{ramo}_0{j}']
+            d.append(np.linalg.norm(p - projetar(p, modelo['curva'][k])[0]))
+    return np.array(d)
+
+
+def quadro_mais_proximo(nomes, D, modelo):
+    """índice do quadro medido mais próximo do modelo (menor RMS das 10 distâncias) e o RMS de cada quadro"""
+    rms = np.array([np.sqrt(np.mean(distancias(dict(zip(nomes, q)), modelo) ** 2)) for q in D])
+    return int(np.argmin(rms)), rms
+
+
 def main():
     Ex = X.eixos_salvos()
-    Pr = X.medianas()
+    nomes_tsv, D = X.ler_tsv()
+    Pmed = {n: np.median(D[:, i], axis=0) for i, n in enumerate(nomes_tsv)}   # o mesmo que X.medianas()
     aj = X.ler_json('ajuste_ramos.json')
     an = X.ler_json('caso_analitico.json')
     ans = ler_ansys()
     print(f'Ansys: {ans["sets"]} subpassos gravados, fator de carga final {ans["tempo"]:.4f}')
     # tudo em mm, no sistema do Qualisys; curvas orientadas do nó para a fixação
-    real_no = Pr['centro']
     mods = {'Analítico': dict(P=Ex.para_qualisys(an['P_modelo_m']),
                               curva={k: Ex.para_qualisys(np.array(an['ramos'][k]['curva'])) for k in TRAMOS}),
             'Ansys': dict(P=Ex.para_qualisys(ans['P']),
                           curva={k: Ex.para_qualisys(ans['tr'][k]['xyz'][::-1]) for k in TRAMOS})}
+    # "real" = o quadro medido mais próximo do analítico (ver o cabeçalho); a mediana fica para referência
+    fq, rms_q = quadro_mais_proximo(nomes_tsv, D, mods['Analítico'])
+    Pr = dict(zip(nomes_tsv, D[fq]))
+    real_no = Pr['centro']
+    d_med = {n: distancias(Pmed, m) for n, m in mods.items()}
+    quadro = dict(indice=fq, numero=fq + 1, total=len(D), rms10=float(rms_q[fq]),
+                  rms10_min_max=[float(rms_q.min()), float(rms_q.max())],
+                  mediana={n: dict(no=float(d[0]), rms=float(np.sqrt(np.mean(d[1:] ** 2))), maximo=float(d[1:].max()),
+                                   rms10=float(np.sqrt(np.mean(d ** 2)))) for n, d in d_med.items()})
+    print(f'real = quadro {fq + 1} de {len(D)}, o mais próximo do analítico: RMS dos 10 pontos {rms_q[fq]:.2f} mm '
+          f'(entre os quadros: {rms_q.min():.2f} a {rms_q.max():.2f} mm; com a mediana do ensaio: {quadro["mediana"]["Analítico"]["rms10"]:.2f} mm)')
     linhas = [['grandeza', 'item', 'real', 'analitico', 'ansys', 'erro_analitico', 'erro_ansys', 'unidade', 'obs']]
     f2 = lambda v: f'{v:.1f}'
     vet = lambda v: '(' + '; '.join(f2(c) for c in v) + ')'
+    linhas.append(['quadro medido usado como real', f'{fq + 1} de {len(D)}', '', '', '',
+                   f'{quadro["mediana"]["Analítico"]["no"]:.1f}', f'{quadro["mediana"]["Ansys"]["no"]:.1f}', 'mm',
+                   'quadro do Qualisys mais próximo do analítico (menor RMS das distâncias do nó e dos 9 marcadores); '
+                   'as colunas de erro desta linha trazem o erro do nó com a MEDIANA do ensaio, para referência'])
 
     # ---- nó
     for nome, m in mods.items():
@@ -127,7 +168,8 @@ def main():
                    ' / ansys ' + vet(mods['Ansys']['dP'])])
     print('nó real', np.round(real_no, 1))
     for nome, m in mods.items():
-        print(f'  {nome:9s} {np.round(m["P"], 1)}  d = {np.round(m["dP"], 1)}  |d| = {np.linalg.norm(m["dP"]):.1f} mm')
+        print(f'  {nome:9s} {np.round(m["P"], 1)}  d = {np.round(m["dP"], 1)}  |d| = {np.linalg.norm(m["dP"]):.1f} mm'
+              f'  (com a mediana: {quadro["mediana"][nome]["no"]:.1f} mm)')
 
     # ---- marcadores
     marc = []
@@ -206,16 +248,17 @@ def main():
         for l in linhas:
             w.writerow([c.replace('.', ',') if isinstance(c, str) and i in (2, 3, 4, 5, 6) else c for i, c in enumerate(l)])
     X.salvar_json('comparacao.json', dict(
+        quadro=quadro,
         no=dict(real=real_no, analitico=mods['Analítico']['P'], ansys=mods['Ansys']['P']),
         marcadores=[{k: v for k, v in l.items()} for l in marc],
         ansys={k: dict(T0_meio=v['T0_meio'], T0_junto_P=v['T0_junto_P'], N_fix=v['N_fix'], R=v['R'], L=v['L'])
                for k, v in ans['tr'].items()},
         soma_verticais=dict(peso=peso, analitico=sV_an, ansys=sV_ans)))
-    exportar_visualizador(real_no, mods, marc, tr_vis, dict(peso=peso, analitico=sV_an, ansys=sV_ans), an)
+    exportar_visualizador(real_no, mods, marc, tr_vis, dict(peso=peso, analitico=sV_an, ansys=sV_ans), an, quadro)
     figuras(Ex, Pr, aj, an, ans, mods, marc)
 
 
-def exportar_visualizador(real_no, mods, marc, tr, verticais, an):
+def exportar_visualizador(real_no, mods, marc, tr, verticais, an, quadro):
     """Grava visualizador/experimento_comparacao.js: o que a página do Experimento precisa para sobrepor o
     analítico e o Ansys aos marcadores do Qualisys (curvas em mm no sistema do Qualisys, erros e trações)."""
     v1 = lambda v, n=1: [round(float(c), n) for c in v]
@@ -235,6 +278,9 @@ def exportar_visualizador(real_no, mods, marc, tr, verticais, an):
                         Tfix=round(tr[k]['Tfix_' + ('an' if c == 'analitico' else 'ansys')], 4))
         ramos.append(r)
     obj = {X.TSV.name: dict(
+        # quadro medido usado como "real" (índice a partir de 0) e, para referência, os erros com a mediana do ensaio
+        quadro=dict(indice=quadro['indice'], total=quadro['total'],
+                    mediana={c: {k: round(v, 2) for k, v in quadro['mediana'][n].items()} for n, c in chave.items()}),
         no=dict(real=v1(real_no), **{c: v1(mods[n]['P']) for n, c in chave.items()},
                 erro={c: round(float(np.linalg.norm(mods[n]['dP'])), 2) for n, c in chave.items()}),
         sigma_no=v1(an['monte_carlo']['sigma_P_qualisys_mm'], 2),

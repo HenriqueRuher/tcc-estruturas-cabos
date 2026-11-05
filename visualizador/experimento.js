@@ -211,6 +211,10 @@ const S = {
   pag: 0, seguir: true,
   apelidos: [], ligs: [],
 };
+// O ensaio é estático: a parte de dinâmica (linha do tempo, gráfico no tempo, rastro, exagero e média no intervalo)
+// fica oculta e a página mostra um único quadro medido. experimento.html?dinamica=1 traz tudo de volta.
+const DIN = (() => { const v = new URLSearchParams(location.search).get('dinamica'); return v != null && v !== '0'; })();
+document.body.classList.toggle('sem-dinamica', !DIN);
 const VIEWS = { iso: [-0.75, 0.38], front: [0, 0], side: [-Math.PI / 2, 0], top: [0, Math.PI / 2 - 0.001] };
 const cv = $('#cv'), ctx = cv.getContext('2d'), gr = $('#gr'), gx = gr.getContext('2d');
 let W = 0, H = 0, DPR = 1, GW = 0, GH = 0;
@@ -288,6 +292,22 @@ function proj(p) {
   const v = z * cp + y1 * sp, dd = y1 * cp - z * sp;      // inclinação
   const k = F / (D + dd);
   return [W / 2 + x1 * k, H / 2 - v * k, D + dd, k];
+}
+// quadro mostrado ao abrir: o que a comparação usa como medido (o mais próximo do modelo analítico, escolhido em
+// comparar.py); sem comparação, o primeiro quadro em que todos os marcadores aparecem
+function quadroRef(d) {
+  const todos = (f) => { for (let m = 0; m < d.nM; m++) if (Number.isNaN(d.pos[(f * d.nM + m) * 3])) return false; return true; };
+  const c = (window.QTM_COMPARACAO || {})[d.arquivo], q = c && c.quadro ? c.quadro.indice : -1;
+  if (q >= 0 && q < d.nF && todos(q)) return q;
+  for (let f = 0; f < d.nF; f++) if (todos(f)) return f;
+  return 0;
+}
+// posição de referência do marcador m: sem a dinâmica, a do quadro mostrado; com ela, a média do intervalo
+function posRef(m) {
+  const d = S.d;
+  if (DIN) return d.est[m].validos ? d.est[m].media : null;
+  const k = (S.f * d.nM + m) * 3;
+  return Number.isNaN(d.pos[k]) ? null : [d.pos[k], d.pos[k + 1], d.pos[k + 2]];
 }
 // posição exibida do marcador m no quadro f (com exagero em torno da média)
 function posExib(m, f) {
@@ -470,7 +490,10 @@ function painelComparacao() {
   const v = c.verticais, md = c.medidas;
   $('#compNotaT').textContent = `Nenhuma tração foi medida neste ensaio (as leituras das células de carga foram descartadas): a coluna “inferida da forma” vem da catenária ajustada aos marcadores (T₀ = q·a). `
     + `Soma das componentes verticais nas três fixações: ${fmt(v.analitico, 2)} N no analítico e ${fmt(v.ansys, 2)} N no Ansys, para ${fmt(v.peso, 2)} N de peso suspenso medido na balança.`;
-  $('#compNota').textContent = `Erro = distância de cada ponto medido à curva do modelo. Os dois modelos usam só o que foi medido: corrente grossa de ${fmt(md.L1_mm / 1000, 3)} m `
+  const q = c.quadro;
+  $('#compNota').textContent = (q ? `Medido = quadro ${fmt(q.indice + 1, 0)} de ${fmt(q.total, 0)} do Qualisys: um quadro real, não a média, escolhido por ser o mais próximo do modelo analítico `
+    + `(menor RMS das distâncias dos 10 pontos). Com a mediana do ensaio, o nó ficaria a ${fmt(q.mediana.analitico.no, 1)} mm do analítico e a ${fmt(q.mediana.ansys.no, 1)} mm do Ansys. ` : '')
+    + `Erro = distância de cada ponto medido à curva do modelo. Os dois modelos usam só o que foi medido: corrente grossa de ${fmt(md.L1_mm / 1000, 3)} m `
     + `(${fmt(md.q1_kgm, 3)} kg/m) do perfil ao suporte, com o nó a ${fmt(100 * md.eta, 2)} % a partir do perfil, e corrente média de ${fmt(md.LC_mm / 1000, 3)} m (${fmt(md.q2_kgm, 3)} kg/m) do poste ao nó.`;
   $('#tblComp').querySelectorAll('tbody tr').forEach((tr) => tr.classList.toggle('on', +tr.dataset.m === S.sel));
 }
@@ -530,7 +553,7 @@ function irParaPano() {
 }
 function salvarLab() { try { localStorage.setItem('qtm-lab', JSON.stringify({ lab: S.lab, montagem: S.montagem })); } catch (e) { /* sem storage */ } }
 function carregarScript(src) {
-  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105h'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
+  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105i'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
 }
 async function ligarLab() {
   $('#btnPano').hidden = !S.lab || LAB.estado === 'falhou';
@@ -568,8 +591,8 @@ function remontarLab() {
   const G = window.LAB_GEOM, esf = { partes: [G.parte('marcador', { cor: [0.78, 0.78, 0.8], metal: 0.55, rug: 0.32 }, G.esfera(DIAM_MARCADOR / 2, 24, 16))] };
   LAB.bolas = S.d.nomes.map(() => LAB.cena.adicionar(esf, G.mat.id()));
   LAB.ultimo = S.d.nomes.map(() => null);
-  // posições médias dos marcadores, com os nomes do arquivo (a cena reconhece 'centro' e C1_01…C3_03)
-  const marc = S.d.est.map((e, m) => ({ nome: S.d.nomes[m], p: e.media })).filter((m) => m.p && m.p.every(Number.isFinite));
+  // posições de referência dos marcadores, com os nomes do arquivo (a cena reconhece 'centro' e C1_01…C3_03)
+  const marc = S.d.nomes.map((n, m) => ({ nome: n, p: posRef(m) })).filter((m) => m.p && m.p.every(Number.isFinite));
   const res = window.LAB_CENA.montar(LAB.cena, alvoLab(), marc);
   LAB.grupos = res.grupos; LAB.visada = res.visada || null; LAB.comprimentos = res.comprimentos || null;
   // vista isométrica do laboratório: para a parede dos perfis, pela esquerda, a 45° (como em
@@ -829,7 +852,8 @@ function paineis() {
   const dataTxt = d.data ? d.data.replace(/^(\d{4})-(\d{2})-(\d{2}),?\s*/, '$3/$2/$1 ').replace(/\.\d+$/, '') : '';
   $('#arqNome').innerHTML = `<b>${esc(d.arquivo)}</b>${dataTxt ? ' · gravado em ' + esc(dataTxt) : ''}`;
   $('#sub').textContent = `${d.arquivo} · ${fmt(d.nM, 0)} marcadores · `
-    + (estatico ? 'coordenadas estáticas' : d.freq ? `${fmt(dur, 1)} s a ${fmt(d.freq, d.freq % 1 ? 1 : 0)} Hz` : `${fmt(d.nF, 0)} quadros`);
+    + (estatico ? 'coordenadas estáticas' : d.freq ? `${fmt(dur, 1)} s a ${fmt(d.freq, d.freq % 1 ? 1 : 0)} Hz` : `${fmt(d.nF, 0)} quadros`)
+    + (!DIN && !estatico ? ` · mostrando o quadro ${fmt(S.f + 1, 0)} de ${fmt(d.nF, 0)}` : '');
   // tabela com um só quadro: sem linha do tempo nem gráfico no tempo
   $('#timeline').hidden = estatico; $('#cardGr').hidden = estatico;
   $('#modoPos').disabled = estatico; $('#exag').disabled = estatico; $('#chRastro').disabled = estatico;
@@ -912,6 +936,16 @@ function acompanharTabela() {
 }
 function tabelaMarcadores() {
   const d = S.d;
+  if (!DIN) { // sem a dinâmica: a posição medida no quadro mostrado, não a média
+    $('#tblMarc').innerHTML = '<thead><tr><th>Nome</th><th>X</th><th>Y</th><th>Z</th><th>Vistos</th></tr></thead><tbody>'
+      + d.est.map((e, m) => {
+        const p = posRef(m);
+        return `<tr data-m="${m}" class="${m === S.sel ? 'on' : ''}"><td><input type="text" value="${esc(nome(m))}" data-nome="${m}" aria-label="Nome do marcador ${esc(d.nomes[m])}" title="${esc(d.nomes[m])}"></td>`
+          + [0, 1, 2].map((a) => `<td>${p ? fmt(p[a], 1) : '—'}</td>`).join('')
+          + `<td>${fmt(100 * e.validos / (d.f1 - d.f0 + 1), 0)}%</td></tr>`;
+      }).join('') + '</tbody>';
+    return;
+  }
   $('#tblMarc').innerHTML = '<thead><tr><th>Nome</th><th>X̄</th><th>Ȳ</th><th>Z̄</th><th>Pico a pico</th><th>Vistos</th></tr></thead><tbody>'
     + d.est.map((e, m) => {
       const ppMax = Math.max(...e.pp), eixo = EIXOS[e.pp.indexOf(ppMax)];
@@ -933,7 +967,7 @@ function ligacoesUI() {
   a.value = va && +va < d.nM ? va : '0'; b.value = vb && +vb < d.nM ? vb : String(Math.min(1, d.nM - 1));
   $('#ligLista').innerHTML = S.ligs.length
     ? S.ligs.map(([p, q], i) => {
-      const e1 = d.est[p].media, e2 = d.est[q].media, L = hyp(e1[0] - e2[0], e1[1] - e2[1], e1[2] - e2[2]);
+      const e1 = posRef(p), e2 = posRef(q), L = e1 && e2 ? hyp(e1[0] - e2[0], e1[1] - e2[1], e1[2] - e2[2]) : NaN;
       return `<li><span>${esc(nome(p))} — ${esc(nome(q))}</span><small>${fmt(L, 1)} mm</small><button type="button" class="rm" data-rm="${i}" aria-label="Remover ligação" title="Remover">×</button></li>`;
     }).join('')
     : '<li class="vazio">nenhuma ligação</li>';
@@ -985,7 +1019,7 @@ function loop(agora) {
 // ---------------------------------------------------------------- carregar
 function abrir(dados) {
   parar();
-  S.d = dados; S.f = 0; S.sel = Math.min(S.sel, dados.nM - 1); S.hover = null;
+  S.d = dados; S.f = quadroRef(dados); S.sel = Math.min(S.sel, dados.nM - 1); S.hover = null;
   CACHE_GR = null;
   carregarPrefs();
   montarCena();
@@ -1070,9 +1104,9 @@ function passarMouse(e) {
   cv.style.cursor = 'pointer';
   const d = S.d, e2 = d.est[melhor], k = (S.f * d.nM + melhor) * 3, vis = !Number.isNaN(d.pos[k]);
   tip.innerHTML = `<div><b>${esc(nome(melhor))}</b>${nome(melhor) !== d.nomes[melhor] ? ` <span class="k">(${esc(d.nomes[melhor])})</span>` : ''}</div>`
-    + (S.modo === 'quadro' && vis ? `<div><span class="k">no quadro</span> ${[0, 1, 2].map((a) => fmt(d.pos[k + a], 1)).join(' · ')} mm</div>` : '')
-    + `<div><span class="k">média</span> ${e2.media.map((v) => fmt(v, 1)).join(' · ')} mm</div>`
-    + `<div><span class="k">pico a pico</span> X ${fmt(e2.pp[0], 1)} · Y ${fmt(e2.pp[1], 1)} · Z ${fmt(e2.pp[2], 1)} mm</div>`
+    + (S.modo === 'quadro' && vis ? `<div><span class="k">${DIN ? 'no quadro' : `medido (quadro ${fmt(S.f + 1, 0)})`}</span> ${[0, 1, 2].map((a) => fmt(d.pos[k + a], 1)).join(' · ')} mm</div>` : '')
+    + (DIN ? `<div><span class="k">média</span> ${e2.media.map((v) => fmt(v, 1)).join(' · ')} mm</div>`
+      + `<div><span class="k">pico a pico</span> X ${fmt(e2.pp[0], 1)} · Y ${fmt(e2.pp[1], 1)} · Z ${fmt(e2.pp[2], 1)} mm</div>` : '')
     + (() => { const it = COMP && COMP.itens.find((x) => x.m === melhor); return it ? `<div><span class="k">distância ao modelo</span> analítico ${fmt(it.analitico.erro, 1)} mm · Ansys ${fmt(it.ansys.erro, 1)} mm</div>` : ''; })()
     + '<div class="k">clique para selecionar</div>';
   tip.hidden = false;
@@ -1122,7 +1156,7 @@ $('#pgAnt').addEventListener('click', () => { S.pag--; S.seguir = false; $('#chS
 $('#pgProx').addEventListener('click', () => { S.pag++; S.seguir = false; $('#chSeguir').checked = false; tabelaDados(); });
 $('#pgAtual').addEventListener('click', () => { S.pag = Math.floor(S.f / PAG); tabelaDados(); });
 $('#chSeguir').addEventListener('change', (e) => { S.seguir = e.target.checked; if (S.seguir) acompanharTabela(); });
-$('#tblDados').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-f]'); if (tr) definirQuadro(+tr.dataset.f, true); });
+$('#tblDados').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-f]'); if (tr && DIN) definirQuadro(+tr.dataset.f, true); });
 $('#ligAdd').addEventListener('click', () => {
   const a = +$('#ligA').value, b = +$('#ligB').value;
   if (a === b || S.ligs.some(([p, q]) => (p === a && q === b) || (p === b && q === a))) return;
@@ -1186,7 +1220,7 @@ $('#btnPrev').addEventListener('click', (e) => definirQuadro(S.f - pulo(e), true
 $('#btnNext').addEventListener('click', (e) => definirQuadro(S.f + pulo(e), true));
 $('#speed').addEventListener('change', (e) => { S.vel = +e.target.value; });
 document.addEventListener('keydown', (e) => {
-  if (!S.d || e.target.closest('input, select, textarea')) return;
+  if (!S.d || !DIN || e.target.closest('input, select, textarea')) return;
   if (e.key === ' ') { e.preventDefault(); S.play ? parar() : tocar(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); definirQuadro(S.f - pulo(e), true); }
   else if (e.key === 'ArrowRight') { e.preventDefault(); definirQuadro(S.f + pulo(e), true); }
@@ -1204,7 +1238,10 @@ new ResizeObserver(redimensionar).observe($('#viewport'));
 new ResizeObserver(redimensionar).observe(gr);
 
 // ---------------------------------------------------------------- início
-const LISTA = Array.isArray(window.QTM_ARQUIVOS) ? window.QTM_ARQUIVOS : [];
+// sem a dinâmica, só entram os ensaios estáticos (os que têm comparação com os modelos); os demais são dinâmicos
+const TODOS = Array.isArray(window.QTM_ARQUIVOS) ? window.QTM_ARQUIVOS : [];
+const ESTATICOS = TODOS.filter((a) => (window.QTM_COMPARACAO || {})[a.arquivo]);
+const LISTA = DIN || !ESTATICOS.length ? TODOS : ESTATICOS;
 if (LISTA.length > 1) {
   $('#ensaioRow').hidden = false;
   $('#ensaioSel').innerHTML = LISTA.map((a, i) => `<option value="${i}">${esc(a.arquivo)}</option>`).join('');

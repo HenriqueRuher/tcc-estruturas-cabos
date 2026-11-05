@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experimento — Qualisys</title>
 <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=20261105h">
+<link rel="stylesheet" href="style.css?v=20261105j">
 </head>
 <body>
 
@@ -42,7 +42,7 @@
       <div class="soltar" id="soltar" hidden>Solte o arquivo para importar</div>
     </div>
 
-    <div class="timeline" id="timeline">
+    <div class="timeline so-din" id="timeline">
       <button id="btnPrev" type="button" class="ico" title="Quadro anterior (←; Shift = 1 s)" aria-label="Quadro anterior"><svg class="bi cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6.5v11"/><path d="M18 6.5v11l-8-5.5z"/></svg></button>
       <button id="btnPlay" type="button" class="ico primary" title="Reproduzir / pausar (Espaço)" aria-label="Reproduzir"><svg class="bi cheio i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5v13l10-6.5z"/></svg><svg class="bi i-pausa" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6v12M15.5 6v12" stroke-width="2.8"/></svg></button>
       <button id="btnNext" type="button" class="ico" title="Próximo quadro (→; Shift = 1 s)" aria-label="Próximo quadro"><svg class="bi cheio" viewBox="0 0 24 24" aria-hidden="true"><path d="M17 6.5v11"/><path d="M6 6.5v11l8-5.5z"/></svg></button>
@@ -86,7 +86,7 @@
       </details>
     </section>
 
-    <section class="card" id="cardGr">
+    <section class="card so-din" id="cardGr">
       <h2 id="grTitulo">Deslocamento × tempo</h2>
       <div class="gr-wrap">
         <canvas id="gr" class="grafico-exp" role="img" aria-label="Deslocamento do marcador selecionado em X, Y e Z ao longo do tempo"></canvas>
@@ -130,8 +130,8 @@
         <button type="button" id="pgAnt" class="ico" aria-label="Página anterior" title="Página anterior"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
         <span id="pgInfo"></span>
         <button type="button" id="pgProx" class="ico" aria-label="Próxima página" title="Próxima página"><svg class="bi" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg></button>
-        <button type="button" id="pgAtual" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/></svg>Ir ao quadro atual</button>
-        <label class="seguir"><input type="checkbox" id="chSeguir" checked> acompanhar a animação</label>
+        <button type="button" id="pgAtual" class="add com-ico"><svg class="bi" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.2"/></svg><span class="so-din">Ir ao quadro atual</span><span class="so-est">Ir ao quadro mostrado</span></button>
+        <label class="seguir so-din"><input type="checkbox" id="chSeguir" checked> acompanhar a animação</label>
       </div>
       <div class="tablewrap dados"><table class="tbl clicavel dados" id="tblDados"></table></div>
 
@@ -139,7 +139,7 @@
       <ol class="fontes">
         <li id="fonte1">Qualisys. <a href="https://docs.qualisys.com/qtm/content/processing_measurement/motion_data_tsv.htm" target="_blank" rel="noopener noreferrer">QTM User Manual: Motion data (.tsv)</a>. Formato do arquivo: variáveis do cabeçalho, colunas X, Y, Z em mm, colunas opcionais Frame e Time.</li>
       </ol>
-      <p class="note">Valores exatamente como estão no arquivo, só formatados (vírgula decimal, três casas). Clique numa linha para levar a vista 3D até aquele quadro. Os nomes dos marcadores seguem os nomes editados na tabela de marcadores.</p>
+      <p class="note">Valores exatamente como estão no arquivo, só formatados (vírgula decimal, três casas). <span class="so-din">Clique numa linha para levar a vista 3D até aquele quadro.</span><span class="so-est">A linha em destaque é o quadro mostrado na vista 3D e usado na comparação com os modelos.</span> Os nomes dos marcadores seguem os nomes editados na tabela de marcadores.</p>
     </section>
   </section>
 
@@ -167,12 +167,12 @@
     <section class="card">
       <h2>Marcadores <small>clique para selecionar</small></h2>
       <div class="tablewrap tall"><table class="tbl clicavel edit-nomes" id="tblMarc"></table></div>
-      <p class="note"><b>Nome:</b> o sistema numera os alvos automaticamente (New 0000, New 0001...). Edite o nome para identificar o ponto da montagem; ele fica salvo neste navegador para este arquivo. <b>X̄, Ȳ, Z̄:</b> posição média. <b>Pico a pico:</b> maior variação entre os três eixos. <b>Vistos:</b> fração dos quadros em que o marcador foi visto pelas câmeras.</p>
+      <p class="note"><b>Nome:</b> o sistema numera os alvos automaticamente (New 0000, New 0001...). Edite o nome para identificar o ponto da montagem; ele fica salvo neste navegador para este arquivo. <span class="so-din"><b>X̄, Ȳ, Z̄:</b> posição média. <b>Pico a pico:</b> maior variação entre os três eixos.</span><span class="so-est"><b>X, Y, Z:</b> posição medida no quadro mostrado, em mm (um quadro real do Qualisys, não a média).</span> <b>Vistos:</b> fração dos quadros em que o marcador foi visto pelas câmeras.</p>
     </section>
 
     <section class="card">
       <h2>Exibição</h2>
-      <div class="row">
+      <div class="row so-din">
         <label>Posição dos marcadores
           <select id="modoPos">
             <option value="quadro">quadro atual</option>
@@ -190,16 +190,16 @@
       </div>
       <div class="checks">
         <label class="dica chave" data-dica="Rótulos com o nome de cada ponto na vista 3D. Desligado, nenhum rótulo aparece; passe o mouse sobre um ponto para ver o nome e as coordenadas."><input type="checkbox" id="chNomes" checked> nomes dos pontos</label>
-        <label><input type="checkbox" id="chRastro"> rastro (1 s)</label>
         <label><input type="checkbox" id="chPiso" checked> projeção no piso</label>
         <label><input type="checkbox" id="chOrigem" checked> origem e grade</label>
         <label class="dica chave" data-dica="Sala do laboratório em 3D (14,11 × 7,89 m, pé-direito 4,44 m, medidos com trena laser), com as fotos do local projetadas nas paredes, o L-frame na origem e as três câmeras modeladas. Com ele ligado, a roda do mouse aproxima e afasta o ponto de vista. As posições das câmeras são ilustrativas."><input type="checkbox" id="chLab" checked> laboratório 3D</label>
         <label class="dica chave" data-dica="Perfil na parede, célula de carga, corrente, suporte e poste com peso, modelados a partir das fotos. Posição ilustrativa (não medida)."><input type="checkbox" id="chMontagem" checked> montagem do cabo</label>
         <label class="dica chave" data-dica="Raios de cada câmera até cada alvo: verde = a câmera vê o alvo; vermelho = fora do campo de visão ou bloqueado por algum objeto. As câmeras são posicionadas para que todas vejam todos os alvos."><input type="checkbox" id="chVisada"> linhas de visada</label>
+        <label class="so-din"><input type="checkbox" id="chRastro"> rastro (1 s)</label>
       </div>
       <p class="res" id="labVisada" hidden></p>
       <p class="res" id="labCorrentes" hidden></p>
-      <p class="note"><b>Exagero:</b> multiplica o afastamento de cada marcador em relação à sua posição média, para enxergar movimentos de poucos milímetros. <b>Projeção no piso:</b> linha vertical até o plano Z = 0, para ajudar a ler a profundidade. <b>Origem e grade:</b> eixos do Qualisys na origem e grade de 50/100 mm no plano Z = 0.</p>
+      <p class="note"><span class="so-din"><b>Exagero:</b> multiplica o afastamento de cada marcador em relação à sua posição média, para enxergar movimentos de poucos milímetros. </span><b>Projeção no piso:</b> linha vertical até o plano Z = 0, para ajudar a ler a profundidade. <b>Origem e grade:</b> eixos do Qualisys na origem e grade de 50/100 mm no plano Z = 0.</p>
     </section>
 
     <section class="card">
@@ -214,7 +214,7 @@
       <p class="note">Segmentos retos entre pares de marcadores, para desenhar a montagem (por exemplo, os trechos do cabo entre alvos vizinhos). Ficam salvos neste navegador para este arquivo.</p>
     </section>
 
-    <section class="card">
+    <section class="card so-din">
       <h2>Posição de equilíbrio <small>para comparar com os modelos</small></h2>
       <div class="intervalo" id="intervalo">
         <div class="int-linha">
@@ -259,8 +259,8 @@ B	-139,5	256,6	521,1</pre>
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
 <script src="experimento_dados.js?v=20261105f" onerror="window.QTM_ARQUIVOS=null"></script>
-<script src="experimento_comparacao.js?v=20261105h" onerror="window.QTM_COMPARACAO=null"></script>
-<script src="experimento.js?v=20261105h"></script>
+<script src="experimento_comparacao.js?v=20261105j" onerror="window.QTM_COMPARACAO=null"></script>
+<script src="experimento.js?v=20261105j"></script>
 <script src="notas.js?v=20261105f"></script>
 <script src="codigos.js?v=20261105f" onerror="window.CODIGOS=null"></script>
 <script src="codigo.js?v=20261105f"></script>
