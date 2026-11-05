@@ -55,7 +55,9 @@ function transformador(op = {}) {
   G.juntar(aro, T(G.revolucao([[188, 0], [185, 30]], 48), M.trans(30, 10, H + 6), M.rotX(0.04), M.esc(0.985, 0.985, 1)));
   G.juntar(aro, T(G.toro(16, 4, 16, 6), M.trans(-60, 60, H + 40), M.rotX(Math.PI / 2)), G.barra([-60, 60, H + 6], [-60, 60, H + 26], 5, 10));
   const r = rng(12), perfilSaco = [];
-  for (let i = 0; i <= 12; i++) { const t = i / 12; perfilSaco.push([110 + 25 * Math.sin(t * 9) * (0.3 + t) + (t > 0.85 ? -40 * (t - 0.85) / 0.15 : 0), H + 6 + t * 420]); }
+  for (let i = 0; i <= 14; i++) { const t = i / 14, boca = Math.max(0, (t - 0.72) / 0.28); // a boca do saco estreita e afunda, amassada
+    perfilSaco.push([(112 + 22 * Math.sin(t * 8) * (0.3 + t)) * (1 - 0.5 * boca * boca), H + 6 + t * 430]); }
+  perfilSaco.push([30, H + 6 + 418], [0, H + 6 + 405]);
   const sc = G.revolucao(perfilSaco, 20, { quina: 999 });
   for (let i = 0; i < sc.pos.length; i += 3) { const a = Math.atan2(sc.pos[i + 1], sc.pos[i]); const k = 1 + 0.12 * Math.sin(a * 5 + sc.pos[i + 2] * 0.03) + 0.05 * (r() - 0.5); sc.pos[i] *= k; sc.pos[i + 1] *= k; }
   G.juntar(saco, T(sc, M.trans(-40, 70, 0)));
@@ -132,23 +134,49 @@ function maquinaVermelha() {
   return { partes: [P('armário vermelho', MAT_E.vermelho, r), P('porta', MAT_E.vermelhoEsc, re), P('visor', { cor: [0.12, 0.14, 0.16], metal: 0.2, rug: 0.15 }, vid)], pontos: {} };
 }
 
-// ---------------------------------------------------------------- guindaste de oficina amarelo
-// Pernas para −Y (para dentro da sala), mastro atrás, lança inclinada com cilindro hidráulico, corrente e gancho.
+// ---------------------------------------------------------------- guindaste de oficina amarelo (girafa dobrável)
+// Nas fotos (5_montagem_final/tres_ramos_vista_do_perfil e montagem_final_lateral_cameras, 2_montagem/visao_geral_cameras)
+// ele está DOBRADO para guardar: base curta sobre rodízios, mastro atrás, as duas pernas levantadas e encostadas
+// para trás, a lança arriada para a frente com a corrente e o gancho na ponta e o macaco hidráulico amarelo entre o
+// mastro e a lança. Frente (lado da sala) em −Y. Medidas ESTIMADAS pelas fotos (altura ~1,6 m, base ~0,7 × 0,5 m,
+// por comparação com o tambor de 200 L ao lado).
 function guindaste() {
-  const am = G.vazia(), pr = G.vazia(), cr = G.vazia(), rod = G.vazia();
+  const am = G.vazia(), pr = G.vazia(), cr = G.vazia(), rod = G.vazia(), eti = G.vazia();
+  const tubo = (p, q, a, b) => { // tubo retangular a × b entre dois pontos do plano YZ (mesmo x)
+    const d = [q[0] - p[0], q[1] - p[1], q[2] - p[2]], L = Math.hypot(...d);
+    return T(G.caixa(a, b, L), M.trans((p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2), M.alinharZ(d));
+  };
+  const rodizio = (x, y, z = 0, cima = false) => { // roda de Ø 76 com o garfo
+    G.juntar(rod, T(G.cilindro(38, -14, 14, 14), M.trans(x, y, cima ? z + 50 : 38), M.rotY(Math.PI / 2)));
+    G.juntar(pr, caixaEm(x - 20, y - 24, cima ? z : 50, x + 20, y + 24, cima ? z + 14 : 70));
+  };
+  // base: travessa de trás, duas longarinas curtas e a travessa da frente, onde as pernas articulam
+  G.juntar(am, caixaEm(-340, 150, 70, 340, 225, 145), caixaEm(-340, -260, 70, 340, -195, 140));
   for (const sx of [-1, 1]) {
-    G.juntar(am, caixaEm(sx * 330 - 35, -1100, 40, sx * 330 + 35, 200, 110));
-    G.juntar(rod, T(G.cilindro(40, -18, 18, 16), M.trans(sx * 330, -1060, 40), M.rotY(Math.PI / 2)), T(G.cilindro(40, -18, 18, 16), M.trans(sx * 330, 140, 40), M.rotY(Math.PI / 2)));
+    G.juntar(am, caixaEm(sx * 300 - 35, -260, 70, sx * 300 + 35, 225, 140));
+    rodizio(sx * 300, 190); rodizio(sx * 300, -230);
+    // perna levantada (articulada na frente da base), encostada para trás, com o rodízio da ponta lá em cima
+    const pe = [sx * 215, -215, 150], ponta = [sx * 215, 20, 1330];
+    G.juntar(am, tubo(pe, ponta, 70, 70));
+    G.juntar(rod, T(G.cilindro(38, -14, 14, 14), M.trans(ponta[0], ponta[1] - 62, ponta[2] - 20), M.rotY(Math.PI / 2)));
+    G.juntar(eti, T(G.caixa(1, 46, 90), M.trans(pe[0] + sx * 35.6, -150, 480), M.rotX(-0.2)));          // adesivos de aviso
   }
-  G.juntar(am, caixaEm(-400, 100, 40, 400, 200, 120));
-  G.juntar(am, caixaEm(-45, 120, 120, 45, 210, 1450));                         // mastro
-  const top = [0, 165, 1400], ponta = [0, -900, 1750];
-  G.juntar(am, T(G.caixa(80, Math.hypot(ponta[1] - top[1], ponta[2] - top[2]), 90), M.trans(0, (top[1] + ponta[1]) / 2, (top[2] + ponta[2]) / 2), M.rotX(Math.atan2(ponta[2] - top[2], ponta[1] - top[1]) - Math.PI)));
-  G.juntar(pr, G.barra([0, 120, 300], [0, -380, 1560], 28, 14), G.barra([0, -150, 950], [0, -380, 1560], 18, 12));
-  G.juntar(pr, caixaEm(-25, 110, 600, 25, 140, 700)); // bomba
-  G.juntar(cr, G.tubo([[0, -900, 1700], [0, -905, 1500], [0, -900, 1300]], 6, 6));
-  G.juntar(cr, T(G.toro(30, 7, 16, 6), M.trans(0, -900, 1260), M.rotX(Math.PI / 2)));
-  return { partes: [P('guindaste', MAT_E.amarelo, am), P('cilindro', MAT_E.acoEsc, pr), P('corrente e gancho', MAT_E.aco, cr), P('rodas', MAT_E.borracha, rod)], pontos: {} };
+  // mastro com as duas escoras e a lança arriada para a frente
+  G.juntar(am, caixaEm(-40, 150, 145, 40, 230, 1560));
+  for (const sx of [-1, 1]) G.juntar(am, tubo([sx * 250, 200, 145], [sx * 45, 200, 760], 30, 50));
+  const topo = [0, 150, 1520], bico = [0, -330, 640];
+  G.juntar(am, tubo(topo, bico, 76, 90), tubo([0, 90, 1420], [0, -60, 1150], 96, 20));
+  G.juntar(eti, T(G.caixa(77, 1, 150), M.trans(0, -128, 1016), M.alinharZ([0, bico[1] - topo[1], bico[2] - topo[2]]), M.trans(0, -45.6, 0)));
+  // macaco hidráulico amarelo (camisa, haste cromada, bomba com a alavanca) entre o pé do mastro e a lança
+  const m0 = [0, 110, 330], m1 = [0, -90, 1010], dm = [m1[0] - m0[0], m1[1] - m0[1], m1[2] - m0[2]], Lm = Math.hypot(...dm), um = dm.map((v) => v / Lm);
+  const noMacaco = (t) => m0.map((v, k) => v + um[k] * t);
+  G.juntar(am, G.barra(m0, noMacaco(Lm * 0.72), 34, 14));
+  G.juntar(cr, G.barra(noMacaco(Lm * 0.72), m1, 15, 10));
+  G.juntar(pr, G.barra(noMacaco(40), [-150, 60, 900], 9, 8), T(G.caixa(60, 60, 90), M.trans(0, 110, 300)));
+  // corrente curta e gancho no bico da lança
+  G.juntar(cr, G.tubo([[0, -330, 640], [0, -334, 560], [0, -330, 470]], 7, 6), T(G.toro(28, 7, 14, 6), M.trans(0, -330, 432), M.rotX(Math.PI / 2)));
+  return { partes: [P('guindaste', MAT_E.amarelo, am), P('bomba, alavanca e garfos', MAT_E.acoEsc, pr), P('haste, corrente e gancho', MAT_E.aco, cr),
+    P('rodízios', MAT_E.borracha, rod), P('adesivos', MAT_E.branco, eti)], pontos: {} };
 }
 
 // ---------------------------------------------------------------- tambor azul de 200 L

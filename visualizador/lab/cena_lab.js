@@ -497,8 +497,8 @@ function montar(cena, alvo, marcadores) {
         fixSup = soma(gReal, uS, -dzCel);
       } else fixSup = gReal;
     }
-    const g = Math.atan2(ex[1], ex[0]), q = Ls / 2 - 22;
-    for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const pp = [c[0] + a * q * ex[0] + b * q * ey[0], c[1] + a * q * ex[1] + b * q * ey[1]]; obst.push({ ...caixaQ(pp[0], pp[1], 0, 30, 30, H, g), nome: 'perna do suporte' }); }
+    const g = Math.atan2(ex[1], ex[0]), q = Ls / 2 - 32;
+    for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const pp = [c[0] + a * q * ex[0] + b * q * ey[0], c[1] + a * q * ex[1] + b * q * ey[1]]; obst.push({ ...caixaQ(pp[0], pp[1], 0, 36, 36, H, g), nome: 'perna do suporte' }); }
     obst.push({ ...caixaQ(c[0], c[1], H - 25, Ls, Ls, 25, g), nome: 'tampo do suporte' });
     obst.push({ ...caixaQ(c[0], c[1], 0, Ls + 40, Ls + 40, 30, g), nome: 'base do suporte' });
   }
@@ -520,7 +520,7 @@ function montar(cena, alvo, marcadores) {
     add('montagem', poste, mPoste);
     if (!fixPoste) fixPoste = ponto(mPoste, poste.pontos.argola);
     obst.push({ ...caixaQ(centro[0], centro[1], 0, 56, 56, Hpo + 20), nome: 'poste' });
-    obst.push({ ...caixaQ(centro[0], centro[1], 0, 330, 330, 120), nome: 'base do poste' });
+    obst.push({ ...caixaQ(centro[0], centro[1], 0, 360, 360, 150), nome: 'base do poste' });
     // sobra da corrente média (2,002 − 1,425 = 0,577 m): da argola, uma volta e meia em torno do tubo logo
     // abaixo do topo e o resto pendurado do lado de fora (fotos montagem_final_frente e _lateral_cameras)
     if (med) {
@@ -584,7 +584,7 @@ function montar(cena, alvo, marcadores) {
   if (L.chapaEncostada) ent.push(['chapa de madeira', L.chapaEncostada(), En.chapa, null]);
   if (L.maquinaVerde) ent.push(['máquina verde', L.maquinaVerde(), En.maquinaVerde, [620, 520, 1250]]);
   if (L.maquinaVermelha) ent.push(['máquina vermelha', L.maquinaVermelha(), En.maquinaVermelha, [820, 640, 1150]]);
-  if (L.guindaste) ent.push(['guindaste', L.guindaste(), En.guindaste, [900, 1300, 1600]]);
+  if (L.guindaste) ent.push(['guindaste', L.guindaste(), En.guindaste, [760, 560, 1600]]); // dobrado, como nas fotos
   if (L.tambor) ent.push(['tambor', L.tambor(), En.tambor, [600, 600, 900]]);
   for (const [nome, modelo, sn, cx] of ent) {
     const c = naParede(P, sn[0], sn[1]);
@@ -686,7 +686,7 @@ function montar(cena, alvo, marcadores) {
     const pt = (m, q, def) => (q ? ponto(m, q) : def);
     // na ponta da mesa (−s): o notebook das células; ao lado dele (+s), o da Qualisys com a Camera Sync Unit
     const sQ = -cmp / 2 + 1080, sC = -cmp / 2 + 340; // centro de cada notebook ao longo da mesa
-    const nb1 = L.notebook({ modelo: 'qualisys' }), su = L.syncUnit(), mNb1 = virado(sobre(sQ, 80)), mSu = matBase(P.s, P.n, sobre(sQ + 330, -230));
+    const nb1 = L.notebook({ modelo: 'qualisys' }), su = L.syncUnit(), mNb1 = virado(sobre(sQ, 80)), mSu = matBase([-P.s[0], -P.s[1]], [-P.n[0], -P.n[1]], sobre(sQ + 330, -230)); // face das portas de rede virada para o notebook
     add('montagem', nb1, mNb1); add('montagem', su, mSu);
     const entSu = pt(mSu, su.pontos && su.pontos.entrada, sobre(sQ, -230)), saiSu = pt(mSu, su.pontos && su.pontos.saida, entSu);
     const portaNb1 = pt(mNb1, nb1.pontos && nb1.pontos.porta, sobre(sQ, 80));

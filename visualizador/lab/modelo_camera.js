@@ -1,6 +1,8 @@
-// Modelo 3D procedural: câmera Qualisys (Miqus, com anel de LEDs e aletas) sobre tripé
-// Manfrotto 055 de alumínio com cabeça de 3 eixos (MHXPRO-3W), como nas fotos de
-// ../experimento/fotos/1_equipamento/. Usa window.LAB_GEOM (lab_geom.js).
+// Modelo 3D procedural: câmera Qualisys Miqus (corpo de 140 × 87 × 84 mm, ~700 g — qualisys.com/cameras/miqus —, com
+// lente C-mount e anel de LEDs com aletas) sobre tripé Manfrotto 055 de alumínio de 3 seções (MT055XPRO3: tubos das
+// pernas de Ø 30 / 26 / 22,5 mm, coluna de Ø 28 mm) com cabeça de 3 eixos X-PRO (MHXPRO-3W, 13 cm de altura), como nas
+// fotos de ../experimento/fotos/1_equipamento/. O diâmetro do anel de LEDs (~95 mm) e os detalhes da cabeça são
+// ESTIMADOS pelas fotos. Usa window.LAB_GEOM (lab_geom.js).
 //
 // LAB_MODELOS.cameraTripe({ altura, inclinacao, abertura }) -> { partes, centroOptico, eixo }
 //   altura      altura do centro óptico (meio da lente) acima do chão, mm (padrão 1500)
@@ -89,7 +91,7 @@ const MAT = {
 
 // "gota" preta sobre o topo arredondado da casca: segue a seção (topo plano + cantos de raio rc)
 // e afina de meia-largura total na frente (x = xf) até um ponto em x = xt
-function gotaTopo(xt, xf, meia, ztopo, rc, nx = 28, ns = 18) {
+function gotaTopo(xt, xf, meia, ztopo, rc, nx = 28, ns = 18) { // nx × ns = subdivisões ao longo e através
   const g = G.vazia(), plano = meia - rc, zc = ztopo - rc, off = 0.9;
   const arcoMax = plano + rc * Math.PI / 2 * 0.62; // até onde a gota desce pela lateral
   const sec = (s) => { // ponto e normal na seção, por comprimento de arco a partir do centro
@@ -114,14 +116,14 @@ function gotaTopo(xt, xf, meia, ztopo, rc, nx = 28, ns = 18) {
 }
 
 // ---------------------------------------------------------------- câmera (quadro da câmera: base do corpo em z=0, centro em x=0, lente para +X)
-const CAM = { comp: 140, larg: 100, alt: 95, zLente: 42 };
+const CAM = { comp: 140, larg: 87, alt: 84, zLente: 38 }; // corpo: medidas de catálogo; zLente (eixo óptico): pela foto
 function camera(P) {
-  const { comp, larg, alt, zLente } = CAM, x0 = -comp / 2, x1 = comp / 2;
+  const { comp, larg, alt, zLente } = CAM, x0 = -comp / 2, x1 = comp / 2, zCasca = 39; // zCasca: onde começa a casca clara
   // corpo escuro inteiro (seção arredondada extrudada ao longo de X)
   P.cinzaEscuro.push(T(G.extrusao(retArred(larg, alt, 8, 28), x0, x1), YZ_X));
   // casca cinza clara: metade de cima, um pouco maior, sem cobrir frente e traseira
-  const casca = retArred(larg + 3, alt + 1.5, 8, 29.5).filter((p) => p[1] >= 44);
-  casca.unshift([(larg + 3) / 2, 44]); casca.push([-(larg + 3) / 2, 44]);
+  const casca = retArred(larg + 3, alt + 1.5, 8, 29.5).filter((p) => p[1] >= zCasca);
+  casca.unshift([(larg + 3) / 2, zCasca]); casca.push([-(larg + 3) / 2, zCasca]);
   P.cinzaClaro.push(T(G.extrusao(casca, x0 + 6, x1 - 3), YZ_X));
   // faixa clara contornando a traseira (moldura do painel)
   const moldura = retArred(larg + 3, alt + 1.5, 9, 29.5);
@@ -129,17 +131,17 @@ function camera(P) {
   P.cinzaEscuro.push(T(G.extrusao(retArred(larg - 10, alt - 12, 6, 22), x0 - 1, x0 + 2), M.trans(0, 0, 0), YZ_X, M.trans(0, 6, 0)));
   // frente preta (máscara) e "gota" preta no topo, apontando para trás
   P.aletas.push(T(G.extrusao(retArred(larg + 3.5, alt + 2, 9, 30), x1 - 4, x1 + 1), YZ_X));
-  P.aletas.push(gotaTopo(x0 + 34, x1 - 3, (larg + 3) / 2, alt + 1.5, 29.5));
+  P.aletas.push(gotaTopo(x0 + 34, x1 - 3, (larg + 3) / 2, alt + 1.5, 29.5, 16, 10));
   // aletas verticais nas laterais do corpo inferior
   for (const s of [-1, 1]) for (let x = x0 + 12; x <= x1 - 10; x += 7)
-    P.aletas.push(T(G.caixa(2.6, 4, 38), M.trans(x, s * (larg / 2 + 1.5), 24)));
+    P.aletas.push(T(G.caixa(2.6, 4, 33), M.trans(x, s * (larg / 2 + 1.5), 21)));
   // conectores Ethernet na traseira (dois), etiqueta com nº de série, LED de status
   for (const y of [-14, 14]) {
     P.plastico.push(T(G.caixa(6, 18, 14), M.trans(x0 - 2, y, alt - 22)));
     P.prata.push(T(G.caixa(1, 14, 10), M.trans(x0 - 5, y, alt - 22)));
   }
-  P.etiqueta.push(T(G.caixa(0.8, 34, 20), M.trans(x0 - 1.2, -18, 40)));
-  P.plastico.push(T(G.caixa(0.8, 7, 4), M.trans(x0 - 1.2, 22, 50)));
+  P.etiqueta.push(T(G.caixa(0.8, 30, 18), M.trans(x0 - 1.2, -14, 36)));
+  P.plastico.push(T(G.caixa(0.8, 7, 4), M.trans(x0 - 1.2, 20, 44)));
   // trava de lente (suporte preto em L sob a lente) e botão "Lock"
   P.plastico.push(T(G.caixa(70, 46, 5), M.trans(x1 + 32, 0, zLente - 30)));
   P.plastico.push(T(G.caixa(6, 50, 30), M.trans(x1 + 66, 0, zLente - 18)));
@@ -147,33 +149,36 @@ function camera(P) {
   P.etiqueta.push(T(G.caixa(6, 4, 3), M.trans(x1 - 1, 18, zLente + 20)));
   // lente C-mount (ao longo do eixo óptico): anéis pretos com faixa prateada
   const lente = [[16, 0], [16, 4], [18.6, 4], [18.6, 9], [17.4, 9], [17.4, 15], [19.2, 15], [19.2, 27], [17.6, 27], [17.6, 33], [18.8, 33], [18.8, 46], [14, 46], [12, 44]];
-  P.plastico.push(T(G.revolucao(lente, 40), M.trans(x1, 0, zLente), Z_X));
-  P.prata.push(T(G.revolucao([[18.9, 5], [18.9, 8.5]], 40), M.trans(x1, 0, zLente), Z_X));
-  P.vidro.push(T(G.revolucao([[0, 46.5], [9, 46], [12, 44.5]], 32, { quina: 90 }), M.trans(x1, 0, zLente), Z_X));
-  for (let k = 0; k < 36; k++) { // serrilhado do anel de foco
-    const a = 2 * Math.PI * k / 36;
+  P.plastico.push(T(G.revolucao(lente, 28), M.trans(x1, 0, zLente), Z_X));
+  P.prata.push(T(G.revolucao([[18.9, 5], [18.9, 8.5]], 28), M.trans(x1, 0, zLente), Z_X));
+  P.vidro.push(T(G.revolucao([[0, 46.5], [9, 46], [12, 44.5]], 20, { quina: 90 }), M.trans(x1, 0, zLente), Z_X));
+  for (let k = 0; k < 24; k++) { // serrilhado do anel de foco
+    const a = 2 * Math.PI * k / 24;
     P.plastico.push(T(G.caixa(1.4, 1.6, 11), M.trans(x1, 0, zLente), Z_X, M.rotZ(a), M.trans(19.6, 0, 21)));
   }
   // anel de LEDs (estroboscópio): cubo, aletas radiais, placa frontal de alumínio, duas fileiras de LEDs, filtro
-  const xa = x1 + 38; // início do conjunto (deixa ~3 cm da lente à mostra)
-  P.aletas.push(T(G.revolucao([[24, 0], [36, 0], [36, 30], [31, 30], [31, 3], [24, 3]], 48), M.trans(xa, 0, zLente), Z_X));
-  P.plastico.push(T(G.revolucao([[19, 42], [23, 42], [23, 46], [19, 46]], 40), M.trans(x1, 0, zLente), Z_X));
+  // (montado em tamanho "de desenho" e reduzido em torno do eixo óptico: Ø ~95 mm nas pontas das aletas, pela foto)
+  const xa = x1 + 38, kA = 0.78, A = { aletas: [], prata: [], leds: [], vidro: [] }; // xa: início do conjunto (~3 cm da lente à mostra)
+  A.aletas.push(T(G.revolucao([[24.6, 0], [36, 0], [36, 30], [31, 30], [31, 3], [24.6, 3]], 32), M.trans(xa, 0, zLente), Z_X));
+  P.plastico.push(T(G.revolucao([[19, 42], [19.6, 42], [19.6, 46], [19, 46]], 24), M.trans(x1, 0, zLente), Z_X));
   const nAl = 30;
   for (let k = 0; k < nAl; k++) {
     const a = 2 * Math.PI * (k + 0.5) / nAl;
-    P.aletas.push(T(G.caixaArred(26, 5.6, 28, 2.2, 3), M.trans(xa, 0, zLente), Z_X, M.rotZ(a), M.trans(36 + 12, 0, 15)));
+    A.aletas.push(T(G.caixaArred(26, 5.6, 28, 2.2, 1), M.trans(xa, 0, zLente), Z_X, M.rotZ(a), M.trans(36 + 12, 0, 15)));
   }
-  P.prata.push(T(G.revolucao([[31, 0], [51, 0], [52, 1.2], [52, 3], [31, 3]], 72), M.trans(xa + 30, 0, zLente), Z_X));
-  for (let k = 0; k < 64; k++) { // dentes na borda da placa
-    const a = 2 * Math.PI * k / 64;
-    P.prata.push(T(G.caixa(2.2, 1.8, 3), M.trans(xa + 30, 0, zLente), Z_X, M.rotZ(a), M.trans(52.6, 0, 1.5)));
+  A.prata.push(T(G.revolucao([[31, 0], [51, 0], [52, 1.2], [52, 3], [31, 3]], 40), M.trans(xa + 30, 0, zLente), Z_X));
+  for (let k = 0; k < 40; k++) { // dentes na borda da placa
+    const a = 2 * Math.PI * k / 40;
+    A.prata.push(T(G.caixa(2.2, 2.6, 3), M.trans(xa + 30, 0, zLente), Z_X, M.rotZ(a), M.trans(52.6, 0, 1.5)));
   }
   for (const [r, n] of [[38, 40], [44.5, 46]]) for (let k = 0; k < n; k++) {
     const a = 2 * Math.PI * (k + (r > 40 ? 0.5 : 0)) / n;
-    P.leds.push(T(G.revolucao([[2.6, 0], [2.6, 2.4], [2.2, 3.4], [0, 3.8]], 8, { quina: 50 }), M.trans(xa + 33, 0, zLente), Z_X, M.trans(r * Math.cos(a), r * Math.sin(a), 0)));
+    A.leds.push(T(G.revolucao([[2.7, 0], [2.7, 2.6], [0, 3.8]], 6, { quina: 50 }), M.trans(xa + 33, 0, zLente), Z_X, M.trans(r * Math.cos(a), r * Math.sin(a), 0)));
   }
-  P.aletas.push(T(G.revolucao([[31, 3], [31, -2], [29, -2]], 48), M.trans(xa + 30, 0, zLente), Z_X));
-  P.vidro.push(T(G.disco(30, 0, 48), M.trans(xa + 30.5, 0, zLente), Z_X));
+  A.aletas.push(T(G.revolucao([[31, 3], [31, -2], [29, -2]], 32), M.trans(xa + 30, 0, zLente), Z_X));
+  A.vidro.push(T(G.disco(30, 0, 32), M.trans(xa + 30.5, 0, zLente), Z_X));
+  const reduz = M.cadeia(M.trans(0, 0, zLente), M.esc(1, kA, kA), M.trans(0, 0, -zLente));
+  for (const k in A) for (const g of A[k]) P[k].push(G.transformar(g, reduz));
   return { xLenteMeio: x1 + 21, xFrente: xa + 34 };
 }
 
@@ -181,34 +186,34 @@ function camera(P) {
 // parte fixa (base, giro panorâmico, garfo) e parte que inclina (bloco, placa, câmera, manopla traseira)
 const PIVO = 80;
 function cabecaFixa(P) {
-  P.aluminio.push(G.cilindro(30, 0, 9, 48));
-  P.vermelho.push(G.revolucao([[31, 9], [33.5, 10], [33.5, 15], [31, 16]], 64));
-  P.borracha.push(G.revolucao([[31, 16], [35, 17], [35, 30], [31, 36]], 64));
+  P.aluminio.push(G.cilindro(30, 0, 9, 28));
+  P.vermelho.push(G.revolucao([[31, 9], [33.5, 10], [33.5, 15], [31, 16]], 32));
+  P.borracha.push(G.revolucao([[31, 16], [35, 17], [35, 30], [31, 36]], 32));
   P.plastico.push(T(G.caixaArred(58, 54, 26, 14), M.trans(0, 0, 49)));
   // garfo: duas bochechas em volta do eixo de inclinação
   for (const s of [-1, 1]) P.plastico.push(T(G.caixaArred(44, 12, 50, 6), M.trans(-2, s * 31, PIVO - 10)));
   P.plastico.push(T(G.caixa(30, 70, 12), M.trans(-4, 0, 60)));
   // botão de fricção prateado serrilhado (lado -Y) com centro preto
-  const kn = G.revolucao([[0, 0], [21, 0], [23.5, 2], [23.5, 15], [21, 17], [0, 17]], 64);
+  const kn = G.revolucao([[0, 0], [21, 0], [23.5, 2], [23.5, 15], [21, 17], [0, 17]], 32);
   const knob = [kn];
-  for (let k = 0; k < 44; k++) { const a = 2 * Math.PI * k / 44; knob.push(T(G.caixa(1.6, 1.8, 11), M.rotZ(a), M.trans(23.8, 0, 8.5))); }
+  for (let k = 0; k < 28; k++) { const a = 2 * Math.PI * k / 28; knob.push(T(G.caixa(1.6, 2.6, 11), M.rotZ(a), M.trans(23.8, 0, 8.5))); }
   for (const g of knob) P.prata.push(T(g, M.trans(0, -37, PIVO), M.rotX(Math.PI / 2)));
-  P.plastico.push(T(G.cilindro(14, 0, 1.5, 32), M.trans(0, -54.5, PIVO), M.rotX(Math.PI / 2)));
+  P.plastico.push(T(G.cilindro(14, 0, 1.5, 20), M.trans(0, -54.5, PIVO), M.rotX(Math.PI / 2)));
   P.vermelho.push(T(G.cilindro(3, 0, 1, 16), M.trans(9, -56, PIVO), M.rotX(Math.PI / 2)));
   // botão preto do outro lado (+Y) com o logo vermelho
-  P.borracha.push(T(G.revolucao([[0, 0], [17, 0], [18, 3], [18, 14], [15, 18], [0, 18]], 40), M.trans(0, 37, PIVO), M.rotX(-Math.PI / 2)));
+  P.borracha.push(T(G.revolucao([[0, 0], [17, 0], [18, 3], [18, 14], [15, 18], [0, 18]], 24), M.trans(0, 37, PIVO), M.rotX(-Math.PI / 2)));
   P.vermelho.push(T(G.cilindro(5, 0, 1, 16), M.trans(0, 55.4, PIVO), M.rotX(-Math.PI / 2)));
   // manopla lateral (inclinação lateral), para trás e para o lado +Y
   manopla(P, [-10, 44, PIVO - 6], norm([-0.55, 0.72, -0.42]), 165);
 }
 function manopla(P, p, d, L) {
-  P.plastico.push(aoLongo(G.cilindro(9, -6, 24, 24), p, d));
-  P.borracha.push(aoLongo(G.revolucao([[0, 20], [12, 20], [14, 30], [15.5, L * 0.55], [14.5, L - 18], [12, L - 4], [0, L]], 28, { quina: 60 }), p, d));
+  P.plastico.push(aoLongo(G.cilindro(9, -6, 24, 14), p, d));
+  P.borracha.push(aoLongo(G.revolucao([[0, 20], [12, 20], [14, 30], [15.5, L * 0.55], [14.5, L - 18], [12, L - 4], [0, L]], 18, { quina: 60 }), p, d));
 }
 function cabecaInclina(P) {
   // quadro relativo ao pivô (z=0 no eixo de inclinação)
   P.plastico.push(T(G.caixaArred(50, 46, 40, 10), M.trans(0, 0, 12)));
-  P.plastico.push(T(G.cilindro(14, -25, 25, 32), M.rotX(Math.PI / 2)));
+  P.plastico.push(T(G.cilindro(14, -25, 25, 20), M.rotX(Math.PI / 2)));
   // placa de engate rápido com dois níveis de bolha
   P.plastico.push(T(G.caixaArred(92, 60, 10, 6), M.trans(-6, 0, 37)));
   P.aluminio.push(T(G.caixa(84, 52, 4), M.trans(-6, 0, 44)));
@@ -229,15 +234,15 @@ function tripe(P, zs, topoColuna, abertura, giro = 0) {
   const rv = 66, tri = AZ.map((a) => [rv * Math.cos(a), rv * Math.sin(a)]);
   P.plastico.push(G.extrusao(poliArred(tri, 22, 6), zs - 50, zs));
   P.aluminio.push(G.extrusao(poliArred(AZ.map((a) => [52 * Math.cos(a + Math.PI / 3), 52 * Math.sin(a + Math.PI / 3)]), 18, 5), zs - 46, zs - 4));
-  P.vermelho.push(G.revolucao([[22, zs], [24, zs], [24, zs + 4], [22, zs + 4]], 48));
+  P.vermelho.push(G.revolucao([[22, zs], [24, zs], [24, zs + 4], [22, zs + 4]], 28));
   P.nivel.push(T(G.cilindro(7, 0, 1.5, 24), M.trans(38 * Math.cos(rad(60)), 38 * Math.sin(rad(60)), zs)));
   P.prata.push(T(G.revolucao([[7, 0], [8.5, 0], [8.5, 2.5], [7, 2.5]], 24), M.trans(38 * Math.cos(rad(60)), 38 * Math.sin(rad(60)), zs)));
-  P.aluminio.push(G.cilindro(14.5, zs - 280, topoColuna - 10, 40));
-  P.plastico.push(G.revolucao([[24, zs - 92], [26, zs - 88], [26, zs - 56], [22, zs - 50]], 48));
+  P.aluminio.push(G.cilindro(14, zs - 280, topoColuna - 10, 20));
+  P.plastico.push(G.revolucao([[24, zs - 92], [26, zs - 88], [26, zs - 56], [22, zs - 50]], 28));
   P.plastico.push(T(G.cilindro(9, 0, 22, 24), M.trans(0, -24, zs - 72), M.rotX(Math.PI / 2)));
   P.borracha.push(T(G.revolucao([[0, 0], [10, 0], [11, 4], [11, 14], [8, 18], [0, 18]], 24), M.trans(0, -44, zs - 72), M.rotX(Math.PI / 2)));
-  P.plastico.push(G.revolucao([[0, zs - 300], [16, zs - 300], [16, zs - 284], [14.5, zs - 280]], 32));
-  P.aluminio.push(G.revolucao([[14.5, topoColuna - 10], [28, topoColuna - 8], [28, topoColuna], [0, topoColuna]], 48));
+  P.plastico.push(G.revolucao([[0, zs - 300], [16, zs - 300], [16, zs - 284], [14, zs - 280]], 20));
+  P.aluminio.push(G.revolucao([[14, topoColuna - 10], [28, topoColuna - 8], [28, topoColuna], [0, topoColuna]], 28));
   // pernas: três seções telescópicas com travas de alavanca e pé de borracha
   const pes = [];
   AZ.forEach((a, i) => {
@@ -255,21 +260,21 @@ function tripe(P, zs, topoColuna, abertura, giro = 0) {
     P.prata.push(T(G.caixaArred(26, 2, 72, 5), M.trans(...pl), base3(d, nOut)));
     P.vermelho.push(T(G.cilindro(4, 0, 2, 16), M.trans(...add(at(4), mulv(nOut, 4))), M.alinharZ(lado), M.trans(0, 0, 18)));
     // dobradiça
-    P.aluminio.push(T(G.cilindro(7, -22, 22, 20), M.trans(...H), M.alinharZ(lado)));
+    P.aluminio.push(T(G.cilindro(7, -22, 22, 12), M.trans(...H), M.alinharZ(lado)));
     const t1 = 0.43 * L, t2 = 0.74 * L;
-    P.aluminio.push(aoLongo(G.cilindro(14.5, 0, t1, 32, false), at(60), d));
-    P.aluminio.push(aoLongo(G.cilindro(12, 0, t2 - t1 + 10, 28, false), at(t1 - 10 + 60 * 0), d));
-    P.aluminio.push(aoLongo(G.cilindro(9.5, 0, L - t2 + 10, 24, false), at(t2 - 10), d));
-    if (i === 1) P.borracha.push(aoLongo(G.revolucao([[14.5, 0], [18, 6], [18, 220], [14.5, 226]], 32), at(130), d)); // espuma
+    P.aluminio.push(aoLongo(G.cilindro(15, 0, t1, 18, false), at(60), d));
+    P.aluminio.push(aoLongo(G.cilindro(13, 0, t2 - t1 + 10, 16, false), at(t1 - 10 + 60 * 0), d));
+    P.aluminio.push(aoLongo(G.cilindro(11.25, 0, L - t2 + 10, 14, false), at(t2 - 10), d));
+    if (i > 0) P.borracha.push(aoLongo(G.revolucao([[15, 0], [18.5, 6], [18.5, 220], [15, 226]], 18), at(130), d)); // espuma (duas das três pernas)
     // travas (alavanca preta com faixa prateada)
-    for (const [t, r] of [[t1 + 60 * 0, 14.5], [t2, 12]]) {
-      P.plastico.push(aoLongo(G.revolucao([[r + 1, -8], [r + 4, -4], [r + 4, 24], [r + 1, 30]], 28), at(t), d));
+    for (const [t, r] of [[t1 + 60 * 0, 15], [t2, 13]]) {
+      P.plastico.push(aoLongo(G.revolucao([[r + 1, -8], [r + 4, -4], [r + 4, 24], [r + 1, 30]], 18), at(t), d));
       const lv = add(at(t + 4), mulv(nOut, r + 8));
       P.plastico.push(T(G.caixaArred(20, 9, 66, 3.5), M.trans(...lv), base3(d, nOut)));
       P.prata.push(T(G.caixa(12, 1, 26), M.trans(...add(lv, mulv(nOut, 4.8))), base3(d, nOut), M.trans(0, 0, -14)));
     }
     // pé de borracha
-    P.borracha.push(T(G.revolucao([[0, 0], [16, 0], [17.5, 4], [16.5, 22], [12, 34], [0, 34]], 28), M.trans(F[0], F[1], 0)));
+    P.borracha.push(T(G.revolucao([[0, 0], [16, 0], [17.5, 4], [16.5, 22], [12, 34], [0, 34]], 16), M.trans(F[0], F[1], 0)));
     pes.push({ H, F, d, L, at, nOut });
   });
   return pes;
@@ -317,9 +322,9 @@ function cameraTripe(op = {}) {
   const c7 = add(pe.F, add(mulv(pe.nOut, 200), noChao(-60, 40)));
   const c8 = add(pe.F, add(mulv(pe.nOut, 520), noChao(-180, 140)));
   c6[2] = 8; c7[2] = 4.5; c8[2] = 4.5; // no chão (nOut tem componente vertical)
-  const fio = spline([c0, c1, c2, c3, c4, c5, c6, c7, c8], 12);
+  const fio = spline([c0, c1, c2, c3, c4, c5, c6, c7, c8], 8);
   fio.forEach((p) => { p[2] = Math.max(p[2], 4); });
-  P.cabo.push(G.tubo(fio, 3.6, 10));
+  P.cabo.push(G.tubo(fio, 3.6, 8));
   P.cabo.push(T(G.caixaArred(16, 18, 14, 4), M.trans(...c0), mCam.slice(0, 12).concat([0, 0, 0, 1])));
   // junta tudo por material
   const partes = [];
