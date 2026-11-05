@@ -205,7 +205,7 @@ const S = {
   yaw: -0.75, pitch: 0.38, zoom: 1,
   play: false, vel: 1,
   modo: 'quadro', exag: 1,
-  nomes: true, rastro: false, piso: true, origem: true,
+  nomes: true, rastro: false, piso: true, origem: true, lab: true, montagem: true, pano: false, visada: false,
   escalaPropria: false,
   pag: 0, seguir: true,
   apelidos: [], ligs: [],
@@ -226,6 +226,20 @@ function carregarPrefs() {
     const l = JSON.parse(localStorage.getItem(chave('ligacoes')) || 'null');
     if (Array.isArray(l)) S.ligs = l.filter((p) => Array.isArray(p) && p.length === 2 && p.every((m) => m >= 0 && m < d.nM));
   } catch (e) { /* sem storage */ }
+  if (!S.ligs.length) S.ligs = ligacoesPadrao(d.nomes);
+}
+// ensaios com o nó 'centro' e marcadores Ck_0j nos cabos: liga cada cabo do nó para fora (_03 -> _02 -> _01)
+function ligacoesPadrao(nomes) {
+  const no = nomes.findIndex((n) => /^centro$/i.test(n)), cabos = {};
+  if (no < 0) return [];
+  nomes.forEach((n, m) => { const r = /^C(\d+)_0?(\d+)$/i.exec(n); if (r) (cabos[r[1]] = cabos[r[1]] || []).push([+r[2], m]); });
+  const ligs = [];
+  for (const lista of Object.values(cabos)) {
+    lista.sort((a, b) => b[0] - a[0]); // 03, 02, 01: do nó para a fixação
+    let ant = no;
+    for (const [, m] of lista) { ligs.push([ant, m]); ant = m; }
+  }
+  return ligs;
 }
 function salvarPrefs() {
   try {
@@ -254,11 +268,20 @@ function montarCena() {
   CENA = { c: [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2], R, g, eixo: Math.max(g.step, Math.round(R * 0.25 / g.step) * g.step) };
 }
 function camera() {
-  const D = 4 * CENA.R;
-  CAM = { cy: Math.cos(S.yaw), sy: Math.sin(S.yaw), cp: Math.cos(S.pitch), sp: Math.sin(S.pitch), D, F: 0.46 * Math.min(W, H) * D / CENA.R * S.zoom };
+  const cy = Math.cos(S.yaw), sy = Math.sin(S.yaw), cp = Math.cos(S.pitch), sp = Math.sin(S.pitch);
+  if (panoAtivo()) {
+    // panorama 360°: olho travado no ponto de captura das fotos; arrastar gira a cabeça, a roda muda a lente.
+    // A projeção é a mesma: o centro da vista fica a D do olho, na direção para onde se olha.
+    const o = window.LAB_CENA.CONFIG.ambiente.centro, D = 1000, fov = 2 * Math.atan(Math.tan(PANO_FOV / 2) / S.zoom);
+    CAM = { cy, sy, cp, sp, D, F: 0.5 * H / Math.tan(fov / 2), fov, c: [o[0] + D * sy * cp, o[1] + D * cy * cp, o[2] - D * sp] };
+    return;
+  }
+  // com o laboratório 3D ligado, a roda aproxima/afasta o ponto de vista (FOV fixo); sem ele, é zoom de lente
+  const D = labAtivo() ? 4 * CENA.R / S.zoom : 4 * CENA.R;
+  CAM = { cy, sy, cp, sp, D, F: 0.46 * Math.min(W, H) * D / CENA.R * S.zoom, c: CENA.c };
 }
 function proj(p) {
-  const { cy, sy, cp, sp, D, F } = CAM, c = CENA.c;
+  const { cy, sy, cp, sp, D, F, c } = CAM;
   const x = p[0] - c[0], y = p[1] - c[1], z = p[2] - c[2];
   const x1 = x * cy - y * sy, y1 = x * sy + y * cy;      // giro em torno de Z
   const v = z * cp + y1 * sp, dd = y1 * cp - z * sp;      // inclinação
@@ -294,7 +317,7 @@ function desenhar() {
   lerTema();
   camera();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.fillStyle = TH.surface; ctx.fillRect(0, 0, W, H);
+  if (labAtivo()) { ctx.clearRect(0, 0, W, H); desenharLab(); } else { ctx.fillStyle = TH.surface; ctx.fillRect(0, 0, W, H); }
   ctx.font = '11px "Segoe UI", system-ui, sans-serif';
   const d = S.d;
   if (S.origem) desenharGrade();
@@ -304,8 +327,22 @@ function desenhar() {
     const pa = posExib(a, S.f), pb = posExib(b, S.f);
     if (!pa || !pb) continue;
     const A = proj(pa), B = proj(pb);
-    ctx.strokeStyle = TH.ink2; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+    ctx.strokeStyle = TH.ink2; ctx.lineWidth = labAtivo() ? 1 : 2.5; ctx.globalAlpha = labAtivo() ? 0.45 : 1; // com o laboratório, a corrente 3D já aparece
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // linhas de visada: de cada câmera até cada alvo (verde = vê; vermelho = não vê)
+  if (S.visada && labAtivo() && LAB.visada) {
+    ctx.save(); ctx.lineWidth = 1; ctx.globalAlpha = 0.55;
+    LAB.visada.forEach((c) => {
+      const o = proj(c.o);
+      c.vis.forEach((x, m) => {
+        const p = posExib(m, S.f); if (!p) return;
+        const q = proj(p);
+        ctx.strokeStyle = x.ok ? '#22a35a' : '#e03b3b';
+        ctx.beginPath(); ctx.moveTo(o[0], o[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
+      });
+    });
+    ctx.restore();
   }
   // rastro do último 1 s
   if (S.rastro && S.modo === 'quadro') {
@@ -343,12 +380,20 @@ function desenhar() {
   TELA.sort((a, b) => b.q[2] - a.q[2]);
   for (const t of TELA) {
     const sel = t.m === S.sel, hov = t.m === S.hover, r = sel || hov ? 7 : 5.5;
-    ctx.beginPath(); ctx.arc(t.q[0], t.q[1], r + 2, 0, 2 * Math.PI); ctx.fillStyle = TH.surface; ctx.fill();
-    ctx.beginPath(); ctx.arc(t.q[0], t.q[1], r, 0, 2 * Math.PI); ctx.fillStyle = sel ? TH.accent : TH.ink2; ctx.fill();
-    if (hov && !sel) { ctx.strokeStyle = TH.accent; ctx.lineWidth = 2; ctx.stroke(); }
-    if (S.nomes || sel || hov) {
+    if (labAtivo()) { // a bolinha 3D aparece por dentro; o anel marca seleção e hover
+      const rr = Math.max(r, 0.5 * DIAM_MARCADOR * t.q[3] + 3);
+      ctx.beginPath(); ctx.arc(t.q[0], t.q[1], rr, 0, 2 * Math.PI);
+      ctx.strokeStyle = TH.surface; ctx.lineWidth = 3.5; ctx.stroke();
+      ctx.strokeStyle = sel || hov ? TH.accent : TH.ink2; ctx.lineWidth = sel || hov ? 2.2 : 1.4; ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(t.q[0], t.q[1], r + 2, 0, 2 * Math.PI); ctx.fillStyle = TH.surface; ctx.fill();
+      ctx.beginPath(); ctx.arc(t.q[0], t.q[1], r, 0, 2 * Math.PI); ctx.fillStyle = sel ? TH.accent : TH.ink2; ctx.fill();
+      if (hov && !sel) { ctx.strokeStyle = TH.accent; ctx.lineWidth = 2; ctx.stroke(); }
+    }
+    if (S.nomes) { // desligado: nenhum rótulo (o balão do mouse continua mostrando o nome)
       ctx.fillStyle = sel ? TH.ink : TH.ink2; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.font = `${sel ? 600 : 400} 11.5px "Segoe UI", system-ui, sans-serif`;
+      if (labAtivo()) { ctx.lineWidth = 3; ctx.strokeStyle = TH.surface; ctx.lineJoin = 'round'; ctx.strokeText(nome(t.m), t.q[0] + r + 5, t.q[1] - 1); }
       ctx.fillText(nome(t.m), t.q[0] + r + 5, t.q[1] - 1);
     }
   }
@@ -383,6 +428,136 @@ function desenharGrade() {
   ctx.fillStyle = TH.muted; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText(`grade ${fmt(g.step, 0)} mm no plano Z = 0 · cotas em X (vermelho) e Y (verde)`, 14, H - 26);
 }
+
+// ---------------------------------------------------------------- laboratório 3D (camada WebGL atrás do canvas 2D)
+// Os scripts de lab/ só são baixados quando a chave é ligada. O panorama e o piso vêm embutidos em
+// lab/ambiente_dados.js (data URI), porque aberto por file:// o navegador bloqueia texturas de arquivos.
+const cv3d = $('#cv3d'), HINT_ORBITA = $('#hint3d').textContent;
+const LAB = { cena: null, estado: 'nada', grupos: null, falhou: false, bolas: [], ultimo: [] };
+const DIAM_MARCADOR = 19; // mm, marcador refletivo esférico do Qualisys
+const SCRIPTS_LAB = ['lab/lab_geom.js', 'lab/modelo_camera.js', 'lab/modelo_montagem.js', 'lab/cena3d.js', 'lab/cena_lab.js', 'lab/ambiente_dados.js', 'lab/proxies.js', 'lab/sala.js'];
+const labAtivo = () => S.lab && !!LAB.cena && !cv3d.hidden;
+const panoAtivo = () => S.pano && labAtivo();
+const PANO_FOV = 70 * Math.PI / 180; // FOV vertical com zoom 1
+// entra/sai do panorama 360°: no panorama o ambiente vira esfera (vista do próprio ponto de captura, sem as quinas da caixa)
+function definirPano(on) {
+  S.pano = !!on && labAtivo();
+  $('#btnPano').classList.toggle('on', S.pano);
+  $('#hint3d').textContent = S.pano ? 'arraste = olhar em volta · roda = zoom · duplo clique = sair do panorama' : HINT_ORBITA;
+  if (LAB.cena) LAB.cena.ambiente(S.pano ? { ...window.LAB_CENA.CONFIG.ambiente, sala: null, modo: null, raio: 9000 } : window.LAB_CENA.ambiente());
+}
+function irParaPano() {
+  if (!labAtivo()) return;
+  // começa olhando para os marcadores
+  const o = window.LAB_CENA.CONFIG.ambiente.centro, a = S.d ? alvoLab() : [0, 0, 300];
+  const f = [a[0] - o[0], a[1] - o[1], a[2] - o[2]], n = hyp(...f) || 1;
+  definirPano(true); marcarVista('pano');
+  S.yaw = Math.atan2(f[0], f[1]); S.pitch = Math.asin(-f[2] / n); S.zoom = 1;
+  pedirDesenho();
+}
+function salvarLab() { try { localStorage.setItem('qtm-lab', JSON.stringify({ lab: S.lab, montagem: S.montagem })); } catch (e) { /* sem storage */ } }
+function carregarScript(src) {
+  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261105e'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
+}
+async function ligarLab() {
+  $('#btnPano').hidden = !S.lab || LAB.estado === 'falhou';
+  if (!S.lab) { cv3d.hidden = true; pedirDesenho(); return; }
+  if (LAB.cena) { cv3d.hidden = false; statusVisada(); statusCorrentes(); pedirDesenho(); return; }
+  if (LAB.estado !== 'nada') return;
+  LAB.estado = 'carregando';
+  try {
+    for (const src of SCRIPTS_LAB) await carregarScript(src).catch((e) => { if (!/proxies|sala/.test(src)) throw e; });
+    const A = window.LAB_AMBIENTE || {}, C = window.LAB_CENA.CONFIG;
+    LAB.cena = window.Cena3D.criar(cv3d, { ambiente: A.ambiente || 'img/lab/ambiente.jpg', piso: A.piso || 'img/lab/piso.jpg', mascara: A.mascara || undefined, pisoLado: C.piso.lado, aoCarregar: pedirDesenho });
+    if (!LAB.cena) throw new Error('WebGL2 indisponível');
+    LAB.cena.ambiente(window.LAB_CENA.ambiente());
+    LAB.estado = 'pronto';
+    if (S.d) remontarLab();
+    cv3d.hidden = !S.lab;
+    statusVisada(); statusCorrentes();
+  } catch (err) {
+    console.warn('Laboratório 3D indisponível:', err);
+    LAB.estado = 'falhou'; S.lab = false; $('#chLab').checked = false; $('#chLab').disabled = true;
+    $('#chLab').closest('label').title = 'Seu navegador não tem WebGL2: o laboratório 3D não pode ser mostrado.';
+    cv3d.hidden = true; $('#btnPano').hidden = true;
+  }
+  pedirDesenho();
+}
+function alvoLab() { // centro das posições médias dos marcadores
+  const s = [0, 0, 0]; let n = 0;
+  for (const e of S.d.estTotal) if (e.validos) { for (let a = 0; a < 3; a++) s[a] += e.media[a]; n++; }
+  return n ? s.map((v) => v / n) : [0, 0, 300];
+}
+function remontarLab() {
+  if (LAB.grupos) for (const ids of Object.values(LAB.grupos)) ids.forEach((id) => LAB.cena.remover(id));
+  LAB.bolas.forEach((id) => LAB.cena.remover(id));
+  // uma esfera refletiva 3D por marcador, movida a cada quadro em desenharLab()
+  const G = window.LAB_GEOM, esf = { partes: [G.parte('marcador', { cor: [0.78, 0.78, 0.8], metal: 0.55, rug: 0.32 }, G.esfera(DIAM_MARCADOR / 2, 24, 16))] };
+  LAB.bolas = S.d.nomes.map(() => LAB.cena.adicionar(esf, G.mat.id()));
+  LAB.ultimo = S.d.nomes.map(() => null);
+  // posições médias dos marcadores, com os nomes do arquivo (a cena reconhece 'centro' e C1_01…C3_03)
+  const marc = S.d.est.map((e, m) => ({ nome: S.d.nomes[m], p: e.media })).filter((m) => m.p && m.p.every(Number.isFinite));
+  const res = window.LAB_CENA.montar(LAB.cena, alvoLab(), marc);
+  LAB.grupos = res.grupos; LAB.visada = res.visada || null; LAB.comprimentos = res.comprimentos || null;
+  // vista isométrica do laboratório: de frente para a parede dos perfis, pela esquerda (como nas fotos)
+  LAB.iso = null;
+  if (res.parede) {
+    const P = res.parede, f = [-P.n[0] - 0.55 * P.s[0], -P.n[1] - 0.55 * P.s[1]];
+    LAB.iso = [Math.atan2(f[0], f[1]), 0.3];
+    if (document.querySelector('.toolbar button[data-view="iso"]').classList.contains('on')) { S.yaw = LAB.iso[0]; S.pitch = LAB.iso[1]; }
+  }
+  statusVisada(); statusCorrentes();
+  // a sala é reposicionada pelo perfil encontrado nos dados: atualiza o ambiente (esfera no panorama 360°)
+  LAB.cena.ambiente(S.pano ? { ...window.LAB_CENA.CONFIG.ambiente, sala: null, modo: null, raio: 9000 } : window.LAB_CENA.ambiente());
+  visibilidadeLab();
+}
+// texto: as câmeras veem todos os alvos?
+function statusVisada() {
+  const el = $('#labVisada'), v = LAB.visada;
+  if (!v || !labAtivo()) { el.hidden = true; return; }
+  const n = S.d ? S.d.nM : 0, faltam = v.map((c, i) => ({ i, k: c.vis.filter((x) => !x.ok).length })).filter((c) => c.k);
+  el.hidden = false;
+  el.textContent = faltam.length
+    ? `Atenção: ${faltam.map((c) => `câmera ${c.i + 1} não vê ${c.k} alvo(s)`).join('; ')}. Ligue "linhas de visada" para ver quais.`
+    : `Visada conferida: as ${v.length} câmeras veem os ${n} alvos (todos no campo de visão e sem nada no caminho).`;
+}
+// comprimento estimado das correntes (curva pelos marcadores + trecho até a fixação)
+function statusCorrentes() {
+  const el = $('#labCorrentes'), c = LAB.comprimentos;
+  if (!c || !labAtivo()) { el.hidden = true; return; }
+  const rot = { perfil: 'braço do perfil', suporte: 'suporte', poste: 'poste' };
+  const cm = (v) => fmt(v / 1000, 2);
+  el.hidden = false;
+  el.innerHTML = '<b>Comprimento estimado das correntes:</b> '
+    + c.map((k) => `${rot[k.nome]} ≈ ${cm(k.total)} m`).join(' · ')
+    + ` · soma ≈ ${cm(c.reduce((t, k) => t + k.total, 0))} m. <span class="k">Medido pelos marcadores do nó ao último marcador de cada cabo (${c.map((k) => cm(k.medido)).join(' / ')} m); o trecho até a fixação (poucos cm) é estimado.</span>`;
+}
+function visibilidadeLab() {
+  if (!LAB.grupos) return;
+  LAB.grupos.montagem.forEach((id) => LAB.cena.visivel(id, S.montagem));
+}
+function moverBolas() {
+  const G = window.LAB_GEOM;
+  for (let m = 0; m < LAB.bolas.length; m++) {
+    const p = posExib(m, S.f), u = LAB.ultimo[m];
+    if (!p) { if (u) { LAB.cena.visivel(LAB.bolas[m], false); LAB.ultimo[m] = null; } continue; }
+    if (u && Math.abs(u[0] - p[0]) + Math.abs(u[1] - p[1]) + Math.abs(u[2] - p[2]) < 0.05) continue; // parado: não refaz a sombra
+    if (!u) LAB.cena.visivel(LAB.bolas[m], true);
+    LAB.cena.mover(LAB.bolas[m], G.mat.trans(p[0], p[1], p[2]));
+    LAB.ultimo[m] = p.slice();
+  }
+}
+function desenharLab() {
+  if (LAB.bolas.length) moverBolas();
+  LAB.cena.fundo(hexLin(TH.surface));
+  LAB.cena.desenhar({ yaw: S.yaw, pitch: S.pitch, D: CAM.D, F: CAM.F, c: CAM.c, W, H, DPR });
+}
+function hexLin(h) { // '#rrggbb' -> [r,g,b] 0..1
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(h).trim()); if (!m) return [0.93, 0.93, 0.93];
+  const v = parseInt(m[1], 16); return [(v >> 16 & 255) / 255, (v >> 8 & 255) / 255, (v & 255) / 255];
+}
+try { const p = JSON.parse(localStorage.getItem('qtm-lab') || 'null'); if (p) { S.lab = p.lab !== false; S.montagem = p.montagem !== false; } } catch (e) { /* sem storage */ }
+$('#chLab').checked = S.lab; $('#chMontagem').checked = S.montagem;
 
 // ---------------------------------------------------------------- gráfico deslocamento × tempo
 // Um painel por eixo (pequenos múltiplos), uma série por painel: deslocamento do
@@ -736,6 +911,7 @@ function abrir(dados) {
   CACHE_GR = null;
   carregarPrefs();
   montarCena();
+  if (LAB.cena) remontarLab();
   paineis();
   redimensionar();
 }
@@ -779,14 +955,17 @@ cv.addEventListener('pointermove', (e) => {
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (ptrs.size === 2 && pinch0) {
     const [a, b] = [...ptrs.values()];
-    S.zoom = clamp(pinch0.z * hyp(a.x - b.x, a.y - b.y) / pinch0.d, 0.3, 12); pedirDesenho(); return;
+    S.zoom = clamp(pinch0.z * hyp(a.x - b.x, a.y - b.y) / pinch0.d, panoAtivo() ? 0.7 : 0.3, panoAtivo() ? 8 : 12); pedirDesenho(); return;
   }
   if (arrasto && ptrs.size === 1) {
     const dx = e.clientX - arrasto.x, dy = e.clientY - arrasto.y;
     if (Math.abs(dx) + Math.abs(dy) > 2) moveu = true;
     if (moveu) {
-      S.yaw += dx * 0.008; S.pitch = clamp(S.pitch + dy * 0.008, -1.5707, 1.5707);
-      arrasto = { x: e.clientX, y: e.clientY }; tip.hidden = true; marcarVista(null); pedirDesenho();
+      if (panoAtivo()) { // "pegar" a imagem: ela acompanha o mouse
+        const k = 2 * Math.atan(Math.tan(PANO_FOV / 2) / S.zoom) / (H || 1);
+        S.yaw -= dx * k; S.pitch = clamp(S.pitch - dy * k, -1.55, 1.55);
+      } else { S.yaw += dx * 0.008; S.pitch = clamp(S.pitch + dy * 0.008, -1.5707, 1.5707); }
+      arrasto = { x: e.clientX, y: e.clientY }; tip.hidden = true; marcarVista(S.pano ? 'pano' : null); pedirDesenho();
     }
     return;
   }
@@ -801,7 +980,7 @@ const fim = (e) => {
 cv.addEventListener('pointerup', fim);
 cv.addEventListener('pointercancel', fim);
 cv.addEventListener('pointerleave', () => { if (S.hover != null) { S.hover = null; pedirDesenho(); } tip.hidden = true; });
-cv.addEventListener('wheel', (e) => { e.preventDefault(); S.zoom = clamp(S.zoom * Math.exp(-e.deltaY * 0.0012), 0.3, 12); pedirDesenho(); }, { passive: false });
+cv.addEventListener('wheel', (e) => { e.preventDefault(); S.zoom = clamp(S.zoom * Math.exp(-e.deltaY * 0.0012), panoAtivo() ? 0.7 : labAtivo() ? 0.06 : 0.3, panoAtivo() ? 8 : 12); pedirDesenho(); }, { passive: false });
 cv.addEventListener('dblclick', () => irParaVista('iso'));
 function passarMouse(e) {
   if (!S.d) return;
@@ -825,7 +1004,9 @@ function passarMouse(e) {
 }
 function marcarVista(v) { document.querySelectorAll('.toolbar button[data-view]').forEach((b) => b.classList.toggle('on', b.dataset.view === v)); }
 function irParaVista(v) {
-  const [ty, tp] = VIEWS[v], y0 = S.yaw, p0 = S.pitch, z0 = S.zoom, t0 = performance.now();
+  if (v === 'pano') { irParaPano(); return; }
+  if (S.pano) { definirPano(false); camera(); }
+  const [ty, tp] = (v === 'iso' && labAtivo() && LAB.iso) ? LAB.iso : VIEWS[v], y0 = S.yaw, p0 = S.pitch, z0 = S.zoom, t0 = performance.now();
   let dy = ((ty - y0) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI;
   marcarVista(v);
   const passo = (agora) => {
@@ -840,7 +1021,12 @@ document.querySelectorAll('.toolbar button[data-view]').forEach((b) => b.addEven
 $('#btnPng').addEventListener('click', () => {
   const a = document.createElement('a');
   a.download = `experimento_${(S.d ? S.d.arquivo : 'qualisys').replace(/\.[^.]+$/, '')}_q${S.f + 1}.png`;
-  a.href = cv.toDataURL('image/png'); a.click();
+  if (labAtivo()) { // junta a camada WebGL (fundo) com a do canvas 2D
+    const t = document.createElement('canvas'); t.width = cv.width; t.height = cv.height;
+    const c2 = t.getContext('2d'); c2.drawImage(cv3d, 0, 0, t.width, t.height); c2.drawImage(cv, 0, 0);
+    a.href = t.toDataURL('image/png');
+  } else a.href = cv.toDataURL('image/png');
+  a.click();
 });
 
 $('#tblMarc').addEventListener('click', (e) => {
@@ -901,6 +1087,13 @@ $('#chNomes').addEventListener('change', (e) => { S.nomes = e.target.checked; pe
 $('#chRastro').addEventListener('change', (e) => { S.rastro = e.target.checked; pedirDesenho(); });
 $('#chPiso').addEventListener('change', (e) => { S.piso = e.target.checked; pedirDesenho(); });
 $('#chOrigem').addEventListener('change', (e) => { S.origem = e.target.checked; if (S.d) montarCena(); pedirDesenho(); });
+$('#chLab').addEventListener('change', (e) => {
+  S.lab = e.target.checked; salvarLab();
+  if (!S.lab && S.pano) { definirPano(false); irParaVista('iso'); }
+  ligarLab(); statusVisada(); statusCorrentes();
+});
+$('#chVisada').addEventListener('change', (e) => { S.visada = e.target.checked; pedirDesenho(); });
+$('#chMontagem').addEventListener('change', (e) => { S.montagem = e.target.checked; salvarLab(); visibilidadeLab(); pedirDesenho(); });
 $('#chEscala').addEventListener('change', (e) => { S.escalaPropria = e.target.checked; desenharGrafico(); });
 
 $('#slider').addEventListener('input', (e) => definirQuadro(+e.target.value, true));
@@ -935,6 +1128,7 @@ if (LISTA.length > 1) {
   $('#ensaioSel').addEventListener('change', (e) => { const a = LISTA[+e.target.value]; abrirTexto(a.texto, a.arquivo); });
 }
 lerTema();
+ligarLab();
 if (LISTA.length) abrirTexto(LISTA[0].texto, LISTA[0].arquivo);
 else $('#arqNome').textContent = 'Nenhum ensaio embutido (experimento_dados.js não encontrado). Abra um arquivo .tsv pelo botão do topo ou arrastando-o para a vista 3D.';
 })();

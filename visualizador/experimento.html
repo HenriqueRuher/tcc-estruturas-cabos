@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Experimento — Qualisys</title>
-<link rel="stylesheet" href="style.css?v=20261104d">
+<link rel="stylesheet" href="style.css?v=20261105e">
 </head>
 <body>
 
@@ -25,16 +25,18 @@
 <main class="layout">
   <section class="stage exp" aria-label="Visualização 3D">
     <div class="viewport" id="viewport">
+      <canvas id="cv3d" aria-hidden="true" hidden></canvas>
       <canvas id="cv" role="img" aria-label="Vista 3D dos marcadores medidos"></canvas>
       <div class="toolbar" role="group" aria-label="Vistas">
         <button type="button" data-view="iso" class="on">Isométrica</button>
         <button type="button" data-view="front">Frontal <small>XZ</small></button>
         <button type="button" data-view="side">Lateral <small>YZ</small></button>
         <button type="button" data-view="top">Superior <small>XY</small></button>
+        <button type="button" data-view="pano" id="btnPano" hidden title="Vista do ponto onde as fotos do laboratório foram tiradas: o ambiente fica esférico, sem distorção. Arraste para olhar em volta.">Panorama 360°</button>
         <button type="button" id="btnPng" title="Salvar a imagem atual como PNG">Salvar PNG</button>
       </div>
       <div class="exag-tag" id="exagTag" hidden></div>
-      <div class="hint">arraste = girar · roda = zoom · duplo clique = reiniciar vista · solte um arquivo aqui para importar</div>
+      <div class="hint" id="hint3d">arraste = girar · roda = zoom · duplo clique = reiniciar vista · solte um arquivo aqui para importar</div>
       <div class="tip" id="tip" hidden></div>
       <div class="soltar" id="soltar" hidden>Solte o arquivo para importar</div>
     </div>
@@ -161,11 +163,16 @@
         </label>
       </div>
       <div class="checks">
-        <label><input type="checkbox" id="chNomes" checked> nomes</label>
+        <label class="dica chave" data-dica="Rótulos com o nome de cada ponto na vista 3D. Desligado, nenhum rótulo aparece; passe o mouse sobre um ponto para ver o nome e as coordenadas."><input type="checkbox" id="chNomes" checked> nomes dos pontos</label>
         <label><input type="checkbox" id="chRastro"> rastro (1 s)</label>
         <label><input type="checkbox" id="chPiso" checked> projeção no piso</label>
         <label><input type="checkbox" id="chOrigem" checked> origem e grade</label>
+        <label class="dica chave" data-dica="Sala do laboratório em 3D (14,11 × 7,89 m, pé-direito 4,44 m, medidos com trena laser), com as fotos do local projetadas nas paredes, o L-frame na origem e as três câmeras modeladas. Com ele ligado, a roda do mouse aproxima e afasta o ponto de vista. As posições das câmeras são ilustrativas."><input type="checkbox" id="chLab" checked> laboratório 3D</label>
+        <label class="dica chave" data-dica="Perfil na parede, célula de carga, corrente, suporte e poste com peso, modelados a partir das fotos. Posição ilustrativa (não medida)."><input type="checkbox" id="chMontagem" checked> montagem do cabo</label>
+        <label class="dica chave" data-dica="Raios de cada câmera até cada alvo: verde = a câmera vê o alvo; vermelho = fora do campo de visão ou bloqueado por algum objeto. As câmeras são posicionadas para que todas vejam todos os alvos."><input type="checkbox" id="chVisada"> linhas de visada</label>
       </div>
+      <p class="res" id="labVisada" hidden></p>
+      <p class="res" id="labCorrentes" hidden></p>
       <p class="note"><b>Exagero:</b> multiplica o afastamento de cada marcador em relação à sua posição média, para enxergar movimentos de poucos milímetros. <b>Projeção no piso:</b> linha vertical até o plano Z = 0, para ajudar a ler a profundidade. <b>Origem e grade:</b> eixos do Qualisys na origem e grade de 50/100 mm no plano Z = 0.</p>
     </section>
 
@@ -225,10 +232,10 @@ B	-139,5	256,6	521,1</pre>
 
 <footer class="foot" id="rodape">Arquivos de <code>experimento/dados/</code> · convertidos por <code>converter_qtm.mjs</code></footer>
 
-<script src="experimento_dados.js?v=20261104d" onerror="window.QTM_ARQUIVOS=null"></script>
-<script src="experimento.js?v=20261104d"></script>
-<script src="notas.js?v=20261104d"></script>
-<script src="codigos.js?v=20261104d" onerror="window.CODIGOS=null"></script>
-<script src="codigo.js?v=20261104d"></script>
+<script src="experimento_dados.js?v=20261105e" onerror="window.QTM_ARQUIVOS=null"></script>
+<script src="experimento.js?v=20261105e"></script>
+<script src="notas.js?v=20261105e"></script>
+<script src="codigos.js?v=20261105e" onerror="window.CODIGOS=null"></script>
+<script src="codigo.js?v=20261105e"></script>
 </body>
 </html>

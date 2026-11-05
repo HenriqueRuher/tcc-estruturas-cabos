@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Teste Cena3D</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #222; font: 12px "Segoe UI", system-ui, sans-serif; color: #eee; overflow: hidden; }
+  #vp { position: absolute; inset: 0; }
+  #vp canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #c2 { pointer-events: none; }
+  #res { position: absolute; left: 8px; top: 8px; background: rgba(0,0,0,.55); padding: 6px 8px; white-space: pre; z-index: 2; }
+</style>
+</head>
+<body>
+<div id="vp"><canvas id="gl"></canvas><canvas id="c2"></canvas></div>
+<div id="res">carregando…</div>
+<script src="lab_geom.js"></script>
+<script src="modelo_camera.js" onerror="0"></script>
+<script src="modelo_montagem.js" onerror="0"></script>
+<script src="sala.js" onerror="0"></script>
+<script src="cena3d.js"></script>
+<script>
+(() => {
+'use strict';
+// parâmetros: ?amb=url&yaw=..&pitch=..&zoom=..&cx=&cy=&cz=&R=  (mesma convenção de experimento.js)
+const Q = new URLSearchParams(location.search);
+const num = (k, d) => (Q.has(k) ? parseFloat(Q.get(k)) : d);
+const S = { yaw: num('yaw', -0.6), pitch: num('pitch', 0.42), zoom: num('zoom', 1) };
+const CENA = { c: [num('cx', 0), num('cy', 0), num('cz', 350)], R: num('R', 400) };
+const glc = document.getElementById('gl'), c2 = document.getElementById('c2'), ctx = c2.getContext('2d');
+let W = 0, H = 0, DPR = 1, CAM = null;
+
+const amb = Q.get('amb') || window.LAB_AMBIENTE || '../img/lab/ambiente.jpg';
+const cena = Cena3D.criar(glc, { ambiente: amb, aoCarregar: () => desenhar() });
+if (!cena) { document.getElementById('res').textContent = 'sem WebGL2'; return; }
+cena.ambiente({ centro: [num('ccx', 0), num('ccy', 0), num('h', 1500)], raio: num('raio', 6000), azimute0: num('az0', 0) });
+// ?sala=1: caixa com as medidas reais da sala (14 110 × 7 887 mm, pé-direito 4 443 mm); x0/y0 posicionam a origem
+if (Q.get('sala') === '1') { const x0 = num('x0', -4000), y0 = num('y0', -3000); cena.ambiente({ sala: { min: [x0, y0, 0], max: [x0 + 14110, y0 + 7887, 4443] } }); }
+if (Q.has('piso')) cena.piso(Q.get('piso'), num('pisoLado', 300));
+if (Q.has('mascara')) cena.ambiente({ mascara: Q.get('mascara') });
+
+// ---------------------------------------------------------------- cena de teste
+const G = LAB_GEOM, P = G.parte, mat = G.mat;
+const preto = { cor: [0.05, 0.05, 0.055], metal: 0, rug: 0.45 };
+const alu = { cor: [0.91, 0.92, 0.93], metal: 1, rug: 0.3 };
+const add = (partes, m) => cena.adicionar({ partes }, m);
+// eixos sobre o piso (devem cair sobre as linhas vermelha/verde do panorama de teste)
+add([P('x', { cor: [0.85, 0.08, 0.08], metal: 0, rug: 0.5 }, G.barra([0, 0, 6], [900, 0, 6], 6))]);
+add([P('y', { cor: [0.1, 0.65, 0.1], metal: 0, rug: 0.5 }, G.barra([0, 0, 6], [0, 900, 6], 6))]);
+add([P('z', { cor: [0.1, 0.25, 0.9], metal: 0, rug: 0.5 }, G.barra([0, 0, 0], [0, 0, 600], 6))]);
+// esferas de materiais
+const mats = [
+  ['cromo', { cor: [0.95, 0.95, 0.95], metal: 1, rug: 0.06 }], ['alu escovado', alu],
+  ['ouro', { cor: [1, 0.78, 0.34], metal: 1, rug: 0.25 }], ['plástico vermelho', { cor: [0.75, 0.1, 0.08], metal: 0, rug: 0.35 }],
+  ['borracha', { cor: [0.06, 0.06, 0.06], metal: 0, rug: 0.9 }], ['branco fosco', { cor: [0.9, 0.9, 0.88], metal: 0, rug: 0.7 }],
+];
+mats.forEach(([n, m], i) => add([P(n, m, G.esfera(55, 48, 32))], mat.trans(250 + 140 * (i % 3), -250 - 140 * Math.floor(i / 3), 55)));
+// "tripé" de barras com uma caixa em cima
+const tri = G.vazia();
+for (let k = 0; k < 3; k++) { const a = k * 2.094; G.juntar(tri, G.barra([380 * Math.cos(a), 380 * Math.sin(a), 0], [0, 0, 1100], 12, 16)); }
+G.juntar(tri, G.cilindro(18, 700, 1200, 24));
+add([P('tripé', preto, tri), P('corpo', { cor: [0.78, 0.79, 0.8], metal: 0, rug: 0.4 }, G.transformar(G.caixaArred(200, 120, 130, 25), mat.trans(0, 0, 1270)))],
+  mat.trans(-500, 450, 0));
+// marcadores de validação (emissivos magenta) em pontos conhecidos
+const ALVOS = [[0, 0, 600], [900, 0, 6], [0, 900, 6], [-500, 450, 1270], [250, -250, 170], [530, -390, 170], [200, 300, 900]];
+for (const a of ALVOS) add([P('alvo', { cor: [0, 0, 0], metal: 0, rug: 1, emissivo: [1, 0, 1] }, G.esfera(9, 24, 16))], mat.trans(...a));
+// ?proxy=1: caixas com material projetado (proxies da foto) e um tripé atrás de uma delas; ?depurar=1 mostra os proxies
+if (Q.get('proxy') === '1') {
+  const pr = { projetado: true };
+  add([P('proxy', pr, G.transformar(G.caixa(800, 600, 900), mat.trans(2500, 0, 450)))]);
+  add([P('proxy', pr, G.transformar(G.caixa(1200, 500, 750), mat.trans(-1500, 3400, 375)))]);
+  add([P('proxy', pr, G.transformar(G.cilindro(300, 0, 1100, 32), mat.trans(4200, 2600, 0)))]);
+  const tr2 = G.vazia();
+  for (let k = 0; k < 3; k++) { const a = k * 2.094; G.juntar(tr2, G.barra([3225 + 350 * Math.cos(a), -972 + 350 * Math.sin(a), 0], [3225, -972, 1300], 12, 16)); }
+  add([P('tripé atrás', { cor: [0.8, 0.1, 0.1], metal: 0, rug: 0.4 }, tr2)]);
+  if (Q.get('depurar') === '1') cena.depurarProxies(true);
+  if (Q.get('semproxy') === '1') cena.proxiesVisiveis(false);
+}
+// ?assado=1: caixa com textura em UV (grade gerada) e material assado; usa lab/sala.js se existir; ?fundo=1 só céu
+if (Q.get('assado') === '1') {
+  const tc = document.createElement('canvas'); tc.width = tc.height = 512;
+  const tx = tc.getContext('2d');
+  for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { tx.fillStyle = (i + j) % 2 ? '#d9c7a0' : '#8a6a3c'; tx.fillRect(i * 64, j * 64, 64, 64); }
+  tx.fillStyle = '#c00'; tx.font = 'bold 90px Arial'; tx.fillText('v=0', 150, 110); // v = 0 deve ficar em cima
+  const grade = tc.toDataURL('image/png');
+  // caixa com UV por face (cada face usa a textura inteira)
+  const cx = G.caixa(900, 700, 800), uv = [];
+  for (let f = 0; f < 6; f++) uv.push(0, 1, 1, 1, 1, 0, 0, 0);
+  const mc = G.transformar(cx, mat.trans(2600, 0, 400));
+  cena.adicionar({ partes: [{ nome: 'caixa assada', material: { assado: true, textura: grade, realce: num('realce', 0.3), ao: 1 },
+    pos: new Float32Array(mc.pos), nor: new Float32Array(mc.nor), uv: new Float32Array(uv), idx: new Uint32Array(mc.idx) }] });
+  // piso assado (teste de z-fighting com o L-frame e as sombras)
+  const mp = { pos: [-2000, -2000, 0, 2000, -2000, 0, 2000, 2000, 0, -2000, 2000, 0], nor: [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1], idx: [0, 1, 2, 0, 2, 3] };
+  const uvp = [0, 4, 4, 4, 4, 0, 0, 0];
+  cena.adicionar({ partes: [{ nome: 'piso assado', material: { assado: true, textura: grade },
+    pos: new Float32Array(mp.pos), nor: new Float32Array(mp.nor), uv: new Float32Array(uvp), idx: new Uint32Array(mp.idx) }] });
+  if (window.LAB_SALA) cena.adicionar({ partes: LAB_SALA.partes.map((p) => ({ ...p, material: p.material || { assado: true, textura: '../img/lab/sala_atlas.jpg', realce: 0.2 } })) });
+}
+if (Q.get('fundo') === '1') cena.ambiente({ modo: 'fundo' });
+// modelos reais, se já existirem
+const LM = window.LAB_MODELOS || {};
+const extras = [];
+if (typeof LM.cameraTripe === 'function') {
+  try { extras.push('cameraTripe'); add(LM.cameraTripe({}).partes, mat.mul(mat.trans(-900, -300, 0), mat.rotZ(0.6))); } catch (e) { console.error(e); }
+}
+for (const [k, f] of Object.entries(LM)) {
+  if (k === 'cameraTripe' || typeof f !== 'function') continue;
+  try { const m = f({}); if (m && m.partes) { extras.push(k); add(m.partes, mat.trans(-200 - 400 * extras.length, 900, 0)); } } catch (e) { console.error(k, e); }
+}
+
+// ---------------------------------------------------------------- projeção 2D (cópia de experimento.js)
+const OLHO = Q.has('olho') ? Q.get('olho').split(',').map(Number) : null; // ?olho=x,y,z fixa o ponto de vista
+function camera() {
+  const D = 4 * CENA.R;
+  if (OLHO) { const cp = Math.cos(S.pitch), sp = Math.sin(S.pitch); CENA.c = [OLHO[0] + D * cp * Math.sin(S.yaw), OLHO[1] + D * cp * Math.cos(S.yaw), OLHO[2] - D * sp]; }
+  CAM = { cy: Math.cos(S.yaw), sy: Math.sin(S.yaw), cp: Math.cos(S.pitch), sp: Math.sin(S.pitch), D, F: 0.46 * Math.min(W, H) * D / CENA.R * S.zoom };
+}
+function proj(p) {
+  const { cy, sy, cp, sp, D, F } = CAM, c = CENA.c;
+  const x = p[0] - c[0], y = p[1] - c[1], z = p[2] - c[2];
+  const x1 = x * cy - y * sy, y1 = x * sy + y * cy;
+  const v = z * cp + y1 * sp, dd = y1 * cp - z * sp;
+  const k = F / (D + dd);
+  return [W / 2 + x1 * k, H / 2 - v * k, D + dd, k];
+}
+
+function redimensionar() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const r = c2.getBoundingClientRect(); W = r.width; H = r.height;
+  c2.width = Math.round(W * DPR); c2.height = Math.round(H * DPR);
+  desenhar();
+}
+let ultimo = 0;
+function desenhar() {
+  if (!W) return;
+  camera();
+  const t0 = performance.now();
+  cena.desenhar({ yaw: S.yaw, pitch: S.pitch, D: CAM.D, F: CAM.F, c: CENA.c, W, H, DPR });
+  ultimo = performance.now() - t0;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#0ff'; ctx.lineWidth = 1.5;
+  for (const a of ALVOS) { const q = proj(a); ctx.beginPath(); ctx.arc(q[0], q[1], 14, 0, 2 * Math.PI); ctx.stroke(); ctx.beginPath(); ctx.moveTo(q[0] - 20, q[1]); ctx.lineTo(q[0] + 20, q[1]); ctx.moveTo(q[0], q[1] - 20); ctx.lineTo(q[0], q[1] + 20); ctx.stroke(); }
+  validar();
+}
+// centróide dos pixels magenta perto de cada alvo, comparado com a projeção 2D
+function validar() {
+  const gl = cena.gl, w = glc.width, h = glc.height;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const linhas = [`${w}×${h} px · desenho ${ultimo.toFixed(1)} ms · modelos: ${extras.join(', ') || '—'}`];
+  let pior = 0;
+  ALVOS.forEach((a, i) => {
+    const q = proj(a), cx = q[0] * DPR, cy = q[1] * DPR, r = 30;
+    let sx = 0, sy = 0, n = 0;
+    for (let y = Math.max(0, Math.floor(cy - r)); y < Math.min(h, cy + r); y++) for (let x = Math.max(0, Math.floor(cx - r)); x < Math.min(w, cx + r); x++) {
+      const k = ((h - 1 - y) * w + x) * 4;
+      if (px[k] > 190 && px[k + 1] < 110 && px[k + 2] > 190) { sx += x + 0.5; sy += y + 0.5; n++; }
+    }
+    if (!n) { linhas.push(`alvo ${i}: não visível`); return; }
+    const ex = (sx / n - cx) / DPR, ey = (sy / n - cy) / DPR, e = Math.hypot(ex, ey);
+    pior = Math.max(pior, e);
+    linhas.push(`alvo ${i}: erro ${e.toFixed(2)} px (${ex.toFixed(2)}, ${ey.toFixed(2)}) n=${n}`);
+  });
+  linhas.push(`PIOR ERRO: ${pior.toFixed(2)} px`);
+  document.getElementById('res').textContent = linhas.join('\n');
+}
+// órbita: mesma convenção (arrastar = yaw/pitch, roda = zoom)
+let arr = null;
+c2.parentElement.addEventListener('pointerdown', (e) => { arr = [e.clientX, e.clientY, S.yaw, S.pitch]; });
+window.addEventListener('pointermove', (e) => { if (!arr) return; S.yaw = arr[2] + (e.clientX - arr[0]) * 0.008; S.pitch = Math.max(-1.5, Math.min(1.5, arr[3] + (e.clientY - arr[1]) * 0.008)); desenhar(); });
+window.addEventListener('pointerup', () => { arr = null; });
+c2.parentElement.addEventListener('wheel', (e) => { e.preventDefault(); S.zoom *= Math.exp(-e.deltaY * 0.001); desenhar(); }, { passive: false });
+window.addEventListener('resize', redimensionar);
+redimensionar();
+})();
+</script>
+</body>
+</html>
