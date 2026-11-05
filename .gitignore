@@ -4,6 +4,7 @@ ansys/casos_2d/*.json
 ansys/figuras/
 analitico/figuras/
 visualizador/dados_ansys.txt
+experimento/comparacao/resultados/dados_experimento.txt
 __pycache__/
 *.pyc
 # arquivos do Ansys e do LaTeX
@@ -19,3 +20,5 @@ __pycache__/
 # documentação mantida só localmente
 *.md
 !.github/README.md
+# fotos recebidas em zip (as fotos ficam organizadas em experimento/fotos/)
+WhatsApp*.zip
