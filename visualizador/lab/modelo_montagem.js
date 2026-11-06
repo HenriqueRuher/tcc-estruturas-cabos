@@ -10,27 +10,27 @@ const caixaEm = (x0, y0, z0, x1, y1, z1) => T(G.caixa(x1 - x0, y1 - y0, z1 - z0)
 
 // ---------------------------------------------------------------- materiais
 const MAT = {
-  acoEnferrujado: { cor: [0.37, 0.35, 0.33], metal: 0.3, rug: 0.75 },    // chapa de aço com carepa (cinza-acastanhado)
+  acoEnferrujado: { cor: [0.37, 0.35, 0.33], metal: 0.3, rug: 0.75, tex: 'ferrugem' }, // chapa de aço com carepa (cinza-acastanhado)
   ferrugem: { cor: [0.36, 0.27, 0.20], metal: 0.15, rug: 0.9 },
-  acoEscuro: { cor: [0.16, 0.155, 0.15], metal: 0.7, rug: 0.55 },
-  acoBarra: { cor: [0.43, 0.41, 0.39], metal: 0.4, rug: 0.6 },
-  galvanizado: { cor: [0.78, 0.80, 0.82], metal: 0.55, rug: 0.5 },       // corrente zincada nova (prata clara, pouco espelhada)
-  zincado: { cor: [0.70, 0.71, 0.72], metal: 1.0, rug: 0.4 },
-  amareloGasto: { cor: [0.70, 0.50, 0.13], metal: 0.1, rug: 0.75 },      // tinta amarela velha do poste
-  amareloSujo: { cor: [0.42, 0.27, 0.12], metal: 0.15, rug: 0.9 },       // ferrugem aparecendo sob a tinta
+  acoEscuro: { cor: [0.16, 0.155, 0.15], metal: 0.7, rug: 0.55, tex: 'metal' },
+  acoBarra: { cor: [0.43, 0.41, 0.39], metal: 0.4, rug: 0.6, tex: 'ferrugem', texEsc: 0.6 },
+  galvanizado: { cor: [0.78, 0.80, 0.82], metal: 0.55, rug: 0.5, tex: 'metal', texEsc: 0.5 },    // corrente zincada nova (prata clara, pouco espelhada)
+  zincado: { cor: [0.70, 0.71, 0.72], metal: 1.0, rug: 0.4, tex: 'metal' },
+  amareloGasto: { cor: [0.70, 0.50, 0.13], metal: 0.1, rug: 0.75, tex: 'lascada' },             // tinta amarela velha do poste
+  amareloSujo: { cor: [0.42, 0.27, 0.12], metal: 0.15, rug: 0.9, tex: 'ferrugem', texEsc: 0.5 }, // ferrugem aparecendo sob a tinta
   fitaPreta: { cor: [0.05, 0.05, 0.05], metal: 0.0, rug: 0.45 },
-  concreto: { cor: [0.47, 0.46, 0.43], metal: 0.0, rug: 0.95 },
-  aroBorracha: { cor: [0.20, 0.15, 0.12], metal: 0.3, rug: 0.85 },
-  aluminio: { cor: [0.76, 0.77, 0.78], metal: 0.35, rug: 0.65 },         // perfil anodizado natural (fosco)
-  aluminioFosco: { cor: [0.80, 0.81, 0.82], metal: 0.7, rug: 0.55 },
-  fitaPapel: { cor: [0.80, 0.78, 0.72], metal: 0.0, rug: 0.9 },
+  concreto: { cor: [0.47, 0.46, 0.43], metal: 0.0, rug: 0.95, tex: 'concreto' },
+  aroBorracha: { cor: [0.20, 0.15, 0.12], metal: 0.3, rug: 0.85, tex: 'ferrugem' },
+  aluminio: { cor: [0.76, 0.77, 0.78], metal: 0.35, rug: 0.65, tex: 'metal', texDir: [0, 0, 1] }, // perfil anodizado natural (fosco)
+  aluminioFosco: { cor: [0.80, 0.81, 0.82], metal: 0.7, rug: 0.55, tex: 'metal', texEsc: 0.4 },
+  fitaPapel: { cor: [0.80, 0.78, 0.72], metal: 0.0, rug: 0.9, tex: 'fosco', texEsc: 2 },
   barbante: { cor: [0.90, 0.88, 0.82], metal: 0.0, rug: 0.95 },
   pretoAnod: { cor: [0.07, 0.07, 0.08], metal: 0.4, rug: 0.45 },
   vermelho: { cor: [0.80, 0.08, 0.07], metal: 0.0, rug: 0.4 },
   marcador: { cor: [0.58, 0.59, 0.60], metal: 0.35, rug: 0.7 },
   bolha: { cor: [0.55, 0.85, 0.30], metal: 0.0, rug: 0.15 },
   etiqueta: { cor: [0.93, 0.93, 0.90], metal: 0.0, rug: 0.7 },
-  madeira: { cor: [0.55, 0.40, 0.26], metal: 0.0, rug: 0.8 },
+  madeira: { cor: [0.55, 0.40, 0.26], metal: 0.0, rug: 0.8, tex: 'madeira' },
 };
 const mat = (nome, extra) => Object.assign({}, MAT[nome], extra || {});
 
@@ -172,7 +172,7 @@ function grampo(L, H, e, x0, saida) {
   const yb = -L / 2, W = (s, z, x = 0) => [x0 + x, yb - s, z]; // s = distância para fora da borda
   // eixo do fuso: passa por dentro do olhal da célula (centro em zg; olhal Ø20 interno, fuso Ø16) e sobe
   // até a sapata, apoiada no meio da espessura da borda (inclinação limitada a 12°–50°)
-  const zg = H - ALT_GANCHO, zR = zg + 2;
+  const zg = H - ALT_GANCHO, zR = zg + 0.8;
   const alfa = Math.max(0.21, Math.min(0.87, Math.atan2(H - e / 2 - zR, Math.max(saida, 1))));
   const ca = Math.cos(alfa), sa = Math.sin(alfa), tR = saida / ca;
   const eixo = (t, n = 0, x = 0) => W(saida - (tR - t) * ca + n * sa, zR + (tR - t) * sa + n * ca, x); // t = 0 na sapata; n = para cima, ⟂ ao eixo
@@ -203,23 +203,23 @@ function grampo(L, H, e, x0, saida) {
   const tC = tR + 86;
   G.juntar(fuso, naoEixo(G.revolucao([[0, 0], [15, 0], [15, 5], [7, 8], [7, 12]], 16), 0));
   G.juntar(fuso, naoEixo(G.cilindro(6.7, 8, tC, 8, false), 0));
-  const rosca = []; for (let t = 52; t < tR - 10; t += 5) rosca.push([6.7, t], [8, t + 2.5]);
+  const rosca = []; for (let t = 52; t < tR - 16; t += 5) rosca.push([6.7, t], [8, t + 2.5]); // para antes do olhal (o anel fica inclinado no fuso)
   if (rosca.length > 2) G.juntar(fuso, naoEixo(G.revolucao(rosca, 8), 0));
   G.juntar(fuso, naoEixo(G.revolucao([[0, 0], [9, 0], [11, 2], [11, 20], [9, 22], [0, 22]], 14), tC));
   const pc = eixo(tC + 11), dp = [0.82, 0.57 * sa, -0.57 * ca]; // pino atravessado, mais para um lado
   const pA = pc.map((v, k) => v - dp[k] * 22), pB = pc.map((v, k) => v + dp[k] * 84);
   G.juntar(pino, G.barra(pA, pB, 4.5, 10), T(G.esfera(6, 8, 6), M.trans(...pA)), T(G.esfera(6, 8, 6), M.trans(...pB)));
   // barbante: bolo enrolado no fuso depois do olhal, voltas soltas e as pontas caindo
-  const r = rng(91), cb = eixo(tR + 50);
+  const r = rng(91), cb = eixo(tR + 58);
   G.juntar(barb, T(G.esfera(1, 12, 8), M.trans(...cb), M.alinharZ(a3), M.esc(24, 24, 29)));
   for (let k = 0; k < 7; k++) G.juntar(barb, T(G.toro(23.7, 2.2, 14, 4), M.trans(...cb), M.alinharZ(a3), M.rotX((r() - 0.5) * 2.6), M.rotY((r() - 0.5) * 2.6), M.esc(1, 1, 1.12)));
-  for (const dt of [-8, 9, 15]) G.juntar(barb, T(G.toro(10.5, 1.4, 12, 4), M.trans(...eixo(tR + dt)), M.alinharZ(a3), M.rotX(dt * 0.03)));
-  for (const [dx, dy, Lp, t0] of [[9, 6, 250, 42], [-7, -5, 330, 54], [3, 10, 170, 62]]) {
+  for (const dt of [-20, 21, 25]) G.juntar(barb, T(G.toro(10.5, 1.4, 12, 4), M.trans(...eixo(tR + dt)), M.alinharZ(a3), M.rotX(dt * 0.02)));
+  for (const [dx, dy, Lp, t0] of [[9, 6, 250, 50], [-7, -5, 330, 62], [3, 10, 170, 70]]) {
     const o = eixo(t0, -24), pts = [];
     for (let i = 0; i <= 6; i++) { const t = i / 6; pts.push([o[0] + dx * (1 + 2 * t) + 7 * Math.sin(4 * t + dx), o[1] + dy * (1 + 1.5 * t), o[2] - Lp * t]); }
     G.juntar(barb, G.tubo(pts, 1.3, 5));
   }
-  return { corpo, fuso, pino, barbante: barb, furo, gancho: [x0, yb - saida, zg] };
+  return { corpo, fuso, pino, barbante: barb, furo, gancho: [x0, yb - saida, zg], eixo: a3 };
 }
 
 function suporte(op = {}) {
@@ -266,6 +266,8 @@ function suporte(op = {}) {
     const g = gr.gancho, a = og.borda * Math.PI / 2;
     pontos.gancho = [g[0] * Math.cos(a) - g[1] * Math.sin(a), g[0] * Math.sin(a) + g[1] * Math.cos(a), g[2]];
     pontos.canto = pontos.gancho;
+    // direção do fuso (da sapata para o manípulo): o anel do olhal da célula fica enfiado nele
+    const ax = gr.eixo; pontos.eixoFuso = [ax[0] * Math.cos(a) - ax[1] * Math.sin(a), ax[0] * Math.sin(a) + ax[1] * Math.cos(a), ax[2]];
   }
   const partes = [P('tampo', mat('acoEnferrujado'), aco), P('base', mat('acoEnferrujado', { cor: [0.25, 0.215, 0.19], metal: 0.4, rug: 0.85 }), base),
     P('pernas', mat('acoBarra'), barras), P('parafusos Allen', mat('acoEscuro', { cor: [0.045, 0.045, 0.05], metal: 0.5, rug: 0.5 }), allen),
@@ -339,7 +341,9 @@ function postePeso(op = {}) {
       P('roda da base', mat('aroBorracha', { cor: [0.115, 0.095, 0.085], metal: 0.45, rug: 0.75 }), aro),
       P('manchas e boca do tubo', mat('aroBorracha', { cor: [0.16, 0.14, 0.125], metal: 0.1, rug: 0.9 }), escuro), P('tubo amarelo', mat('amareloGasto'), tubo),
       P('ferrugem do tubo', mat('amareloSujo'), sujo), P('fita preta', mat('fitaPreta'), fita), P('argolas', mat('acoEscuro', { cor: [0.20, 0.15, 0.12], metal: 0.5, rug: 0.75 }), aco)],
-    pontos: { argola: [rt + ra - 4 + ra * 0.75, 0, H - 28 - ra * 0.6], argolaOposta: [-(rt + ra - 4 + ra * 0.75), 0, H - 28 - ra * 0.6], topo: [0, 0, H] },
+    pontos: { argola: [rt + ra - 4 + ra * 0.75, 0, H - 28 - ra * 0.6], argolaOposta: [-(rt + ra - 4 + ra * 0.75), 0, H - 28 - ra * 0.6], topo: [0, 0, H],
+      centroArgola: [rt + ra - 4, 0, H - 28] }, // a argola fica no plano XZ (o eixo do anel é o Y local)
+    medidas: { raioTubo: rt, raioArgola: ra, fioArgola: fa, topoMin: H - 32 }, // topoMin: ponto mais baixo da boca cortada torta
   };
 }
 
@@ -424,10 +428,19 @@ function perfilParede(op = {}) {
 // ---------------------------------------------------------------- corrente
 // pontos: polilinha 3D (mm). Os elos são distribuídos por comprimento de arco, com passo = comprimento
 // interno do elo, alternando 90° em torno do eixo. op.elo = { comp, larg, fio } (externos, mm).
+// Pontas presas num olhal: op.inicio / op.fim = { normal: [x, y, z] (eixo do anel), furo: raio interno do anel }.
+// A ponta da polilinha é então o CENTRO do anel: o elo da ponta fica enfiado no furo, apoiado no fio do anel do
+// lado para onde a corrente puxa, e de pé em relação ao anel (o plano do elo contém o eixo do anel), sem
+// atravessá-lo. O passo é ajustado em até ~2 % para os elos fecharem entre as duas pontas, e a diferença de
+// giro entre os dois olhais é distribuída ao longo da corrente (cada elo torce só um pouco).
+// op.inicio / op.fim = { folga: mm }: a ponta do último elo fica a essa distância do fim da polilinha.
 function corrente(pontos, op = {}) {
   const e = Object.assign({ comp: 30, larg: 13, fio: 4 }, op.elo || {});
   const nSeg = op.segTubo || 6, nArco = op.segArco || 5;
-  const passo = e.comp - 2 * e.fio;
+  const passo0 = e.comp - 2 * e.fio;
+  const cruz = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const esc = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const unit = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
   // comprimento acumulado
   const acc = [0];
   for (let i = 1; i < pontos.length; i++) acc.push(acc[i - 1] + Math.hypot(pontos[i][0] - pontos[i - 1][0], pontos[i][1] - pontos[i - 1][1], pontos[i][2] - pontos[i - 1][2]));
@@ -438,29 +451,56 @@ function corrente(pontos, op = {}) {
     const t = (s - acc[i - 1]) / ((acc[i] - acc[i - 1]) || 1), a = pontos[i - 1], b = pontos[i];
     return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   };
+  // distância da ponta da polilinha ao centro do elo da ponta
+  const recuo = (o) => (o && o.furo ? o.furo - e.fio / 2 + (e.comp - e.fio) / 2 : (o && o.folga != null ? o.folga + e.comp / 2 : null));
+  const a0 = recuo(op.inicio), a1 = recuo(op.fim);
+  let n, passo = passo0, s0; // s0 = posição (ao longo da polilinha) do centro do 1º elo
+  if (a0 != null && a1 != null) { // duas pontas presas: nº inteiro de elos entre os dois centros
+    const util = Math.max(passo0, Ltot - a0 - a1);
+    n = Math.max(2, Math.round(util / passo0) + 1); passo = util / (n - 1); s0 = a0;
+  } else if (a0 != null) { n = Math.max(1, Math.floor((Ltot - a0 - e.comp / 2) / passo0) + 1); s0 = a0; }
+  else if (a1 != null) { n = Math.max(1, Math.floor((Ltot - a1 - e.comp / 2) / passo0) + 1); s0 = Ltot - a1 - (n - 1) * passo0; }
+  else { n = Math.max(1, Math.floor(Ltot / passo0)); s0 = (Ltot - n * passo0) / 2 + passo0 / 2; }
   // malha-modelo do elo (anel), em coordenadas locais (eixo longo Z, plano XZ)
   const modelo = anelTubo(estadio(e.comp, e.larg, e.fio, nArco), e.fio / 2, nSeg);
   const g = { pos: [], nor: [], idx: [] };
-  const n = Math.max(1, Math.floor(Ltot / passo));
-  const sobra = (Ltot - n * passo) / 2;
-  let refAnt = null;
+  // quadro de cada elo: z = tangente; u = referência levada de elo em elo sem torção (transporte paralelo)
+  const Q = [];
+  let u = null;
+  // elo enfiado num olhal: sai do centro do anel na direção da corrente, mas exatamente no plano do anel
+  // (o elo passa justo no fio do anel: qualquer inclinação para fora do plano o faria atravessar o fio)
+  const noOlhal = (o, P0, Pd, a, sinal) => {
+    let z = [Pd[0] - P0[0], Pd[1] - P0[1], Pd[2] - P0[2]]; const nn = unit(o.normal), k = esc(z, nn);
+    z = unit([z[0] - k * nn[0], z[1] - k * nn[1], z[2] - k * nn[2]]);
+    return { c: [P0[0] + z[0] * a, P0[1] + z[1] * a, P0[2] + z[2] * a], z: z.map((v) => v * sinal) };
+  };
+  for (let k = 0; k < n; k++) {
+    const sC = s0 + k * passo, A = ponto(sC - passo / 2), B = ponto(sC + passo / 2);
+    let c = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2], z = unit([B[0] - A[0], B[1] - A[1], B[2] - A[2]]);
+    if (k === 0 && op.inicio && op.inicio.normal && op.inicio.furo) ({ c, z } = noOlhal(op.inicio, ponto(0), ponto(e.comp), a0, 1));
+    else if (k === n - 1 && n > 1 && op.fim && op.fim.normal && op.fim.furo) ({ c, z } = noOlhal(op.fim, ponto(Ltot), ponto(Ltot - e.comp), a1, -1));
+    // 1º elo: o plano do elo é o XZ local; com olhal, o eixo X do elo segue o eixo do anel (elo de pé no anel)
+    if (!u) u = op.inicio && op.inicio.normal ? op.inicio.normal : (Math.abs(z[2]) < 0.9 ? cruz([0, 0, 1], z) : [1, 0, 0]);
+    const d = esc(u, z); u = [u[0] - d * z[0], u[1] - d * z[1], u[2] - d * z[2]];
+    if (Math.hypot(...u) < 1e-6) u = cruz(Math.abs(z[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0], z);
+    u = unit(u);
+    Q.push({ c, z, u, w: cruz(z, u) });
+  }
+  // torção total para o último elo ficar de pé no anel do fim (o elo é simétrico: vale módulo 180°)
+  let torce = 0;
+  if (op.fim && op.fim.normal && n > 1) {
+    const q = Q[n - 1], alvo = Math.atan2(esc(op.fim.normal, q.w), esc(op.fim.normal, q.u)), nat = (n - 1) * Math.PI / 2;
+    torce = alvo - nat; torce -= Math.PI * Math.round(torce / Math.PI);
+  }
   const r0 = rng(5);
   for (let k = 0; k < n; k++) {
-    const sA = sobra + k * passo, sB = sA + passo;
-    const A = ponto(sA), B = ponto(sB), c = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2];
-    let z = [B[0] - A[0], B[1] - A[1], B[2] - A[2]]; const zl = Math.hypot(...z) || 1; z = z.map((v) => v / zl);
-    // referência estável: tenta manter o plano do elo próximo do anterior (sem torção)
-    let ref = refAnt || (Math.abs(z[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]);
-    let x = [ref[1] * z[2] - ref[2] * z[1], ref[2] * z[0] - ref[0] * z[2], ref[0] * z[1] - ref[1] * z[0]];
-    let xl = Math.hypot(...x);
-    if (xl < 1e-6) { ref = [1, 0, 0]; x = [ref[1] * z[2] - ref[2] * z[1], ref[2] * z[0] - ref[0] * z[2], ref[0] * z[1] - ref[1] * z[0]]; xl = Math.hypot(...x); }
-    x = x.map((v) => v / xl);
-    let y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
-    refAnt = x; // o próximo elo terá x' = x × z = −y: plano girado 90°
-    // pequena variação aleatória de giro (elos nunca ficam perfeitos)
-    const j = (r0() - 0.5) * 0.25, cj = Math.cos(j), sj = Math.sin(j);
-    const x2 = x.map((v, i) => v * cj + y[i] * sj), y2 = y.map((v, i) => -x[i] * sj + v * cj);
-    const m = [x2[0], x2[1], x2[2], 0, y2[0], y2[1], y2[2], 0, z[0], z[1], z[2], 0, c[0], c[1], c[2], 1];
+    const { c, z, u: uk, w } = Q[k];
+    // giro do elo: 90° a cada elo + a parcela da torção + uma variação pequena (os elos nunca ficam perfeitos;
+    // os das pontas presas em olhais ficam alinhados para não encostar no anel)
+    const jit = (r0() - 0.5) * 0.25, preso = (k < 2 && op.inicio && op.inicio.normal) || (k > n - 3 && op.fim && op.fim.normal);
+    const a = k * Math.PI / 2 + (n > 1 ? torce * k / (n - 1) : 0) + (preso ? 0 : jit), ca = Math.cos(a), sa = Math.sin(a);
+    const x = [0, 1, 2].map((i) => uk[i] * ca + w[i] * sa), y = cruz(z, x);
+    const m = [x[0], x[1], x[2], 0, y[0], y[1], y[2], 0, z[0], z[1], z[2], 0, c[0], c[1], c[2], 1];
     const base = g.pos.length / 3;
     for (let i = 0; i < modelo.pos.length; i += 3) {
       const px = modelo.pos[i], py = modelo.pos[i + 1], pz = modelo.pos[i + 2];
@@ -470,34 +510,38 @@ function corrente(pontos, op = {}) {
     }
     for (const i of modelo.idx) g.idx.push(i + base);
   }
-  return { partes: [P('corrente', mat('galvanizado'), g)], pontos: { inicio: ponto(0), fim: ponto(Ltot) }, elos: n };
+  return { partes: [P('corrente', mat('galvanizado'), g)], pontos: { inicio: ponto(0), fim: ponto(Ltot) }, elos: n, passo };
 }
 
 // ---------------------------------------------------------------- célula de carga em S
-// Célula tipo S de alumínio de 10 kg (gravação "S 10" numa das barras; a marca não aparece nas fotos), com um olhal
-// de suspensão forjado e zincado em cada ponta (M8 tipo DIN 580: anel Ø36 externo / Ø20 interno, 36 mm de altura)
-// e o cabo saindo pelo lado do bloco central, sob resina amarelada. Medidas ESTIMADAS pelas fotos
-// 1_equipamento/celula_de_carga_1_numerada e 2_montagem/celula_de_carga_2, tomando a altura do olhal (36 mm) como
-// escala: corpo ~51 × 64 × 13 mm (2" × 2,5" × 0,5"), barras de 10 mm, rasgos de 11 mm, furo "binóculo" passante.
-// Origem no centro da célula. pontos.topo e pontos.base = centro dos anéis dos olhais (18 mm além das barras);
-// pontos.cabo = ponta do rabicho do cabo (lado −X).
+// Célula de carga tipo S de 10 kg em alumínio anodizado, Alfa Instrumentos modelo S-10 (a gravação "S 10" com a seta
+// e o "+" confere com o desenho do fabricante). Medidas de catálogo (alfainstrumentos.com.br, célula de carga
+// coluna S): 50 × 64 × 12 mm, abas de 10 mm com rosca M6 no centro de cada uma, cabo blindado de Ø 4 mm saindo pela
+// lateral. Em cada ponta, um olhal de suspensão DIN 580 M6 forjado e zincado (anel de Ø 36 externo / Ø 20 interno,
+// 36 mm de altura, colar de Ø 20). Os rasgos do S (~5,5 mm) e o furo "binóculo" passante do miolo são ESTIMADOS
+// pelas fotos 1_equipamento/celula_de_carga_1_numerada e 2_montagem/celula_de_carga_2. A resina amarelada cobre a
+// saída do cabo. Origem no centro da célula. pontos.topo e pontos.base = centro dos anéis dos olhais (18 mm além
+// das abas); pontos.cabo = ponta do rabicho do cabo (lado −X); medidas.furoOlhal = raio interno do anel.
 // olhal de suspensão: assento em z = 0, anel no plano XZ com centro em z = 18
 function olhalForjado() {
-  const g = T(G.toro(14, 4, 18, 6), M.trans(0, 0, 18), M.rotX(Math.PI / 2));
-  G.juntar(g, G.revolucao([[0, 0], [10, 0], [10, 4.5], [7, 8], [0, 8]], 12));              // colar
-  G.juntar(g, T(G.esfera(1, 8, 5), M.trans(0, 0, 8), M.esc(8.5, 4.6, 6.5)));               // pescoço forjado
+  // fio do anel de Ø 7,4 (nominal 8): 0,3 mm de folga para o elo de 6 mm, que passa justo nele
+  const g = T(G.toro(14, 3.7, 24, 8), M.trans(0, 0, 18), M.rotX(Math.PI / 2));
+  // colar de Ø 20 e a base engrossada do anel (DIN 580: 10 mm na base, 8 no topo), sem invadir o furo de Ø 20,
+  // que começa 7,7 mm acima do assento: é por ele que passam o fuso do grampo e o elo da corrente
+  G.juntar(g, G.revolucao([[0, 0], [10, 0], [10, 4], [7, 7], [0, 7]], 16));                 // colar
+  G.juntar(g, T(G.esfera(1, 10, 6), M.trans(0, 0, 4), M.esc(11.5, 4.9, 3.6)));              // base forjada do anel
   return g;
 }
 function celulaCarga(op = {}) {
-  const L = op.largura || 51, A = op.altura || 64, e = op.esp || 13;
+  const L = op.largura || 50, A = op.altura || 64, e = op.esp || 12;
   const alu = G.vazia(), ver = G.vazia(), aco = G.vazia(), res = G.vazia(), fio = G.vazia(), grav = G.vazia();
-  const h = A / 2, w = L / 2, t = 10, f = 11, hc = h - t - f, lp = 12; // barras, rasgos, meia-altura do bloco central, postes
+  const h = A / 2, w = L / 2, t = 10, f = 5.5, hc = h - t - f, lp = 11.5; // abas, rasgos, meia-altura do miolo, postes
   const quad = (g, a, b, c, d, n) => { const k = g.pos.length / 3; g.pos.push(...a, ...b, ...c, ...d); for (let i = 0; i < 4; i++) g.nor.push(...n); g.idx.push(k, k + 1, k + 2, k, k + 2, k + 3); };
   // forma em S: barra de cima, poste (+X), bloco central, poste (−X, o lado do cabo), barra de baixo
   G.juntar(alu, caixaEm(-w, -e / 2, h - t, w, e / 2, h), caixaEm(w - lp, -e / 2, hc, w, e / 2, h - t));
   G.juntar(alu, caixaEm(-w, -e / 2, -h, w, e / 2, -h + t), caixaEm(-w, -e / 2, -h + t, -w + lp, e / 2, -hc));
   // bloco central com o furo "binóculo" passante: união de dois círculos de raio rc com centros em x = ±d
-  const rc = 6.8, d = 4.6, nA = 28, angs = [];
+  const rc = 6.2, d = 5.4, nA = 28, angs = []; // dois furos de Ø 12,4 com os centros a 10,8 mm
   const raioFuro = (th) => { const c = Math.cos(th), s = Math.sin(th); return Math.max(...[-d, d].map((cx) => cx * c + Math.sqrt(Math.max(0, rc * rc - cx * cx * s * s)))); };
   for (let k = 0; k < nA; k++) angs.push(2 * Math.PI * (k + 0.5) / nA);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) angs.push((Math.atan2(sz * hc, sx * w) + 2 * Math.PI) % (2 * Math.PI));
@@ -545,19 +589,27 @@ function celulaCarga(op = {}) {
       P('olhais', mat('zincado', { cor: [0.70, 0.71, 0.72], metal: 0.45, rug: 0.6 }), aco),
       P('resina', mat('etiqueta', { cor: [0.93, 0.90, 0.76], rug: 0.3 }), res), P('cabo', mat('fitaPreta'), fio)],
     pontos: { topo: [0, 0, h + 18], base: [0, 0, -h - 18], cabo: [-w - 60, 0, -12] },
+    medidas: { furoOlhal: 14 - 3.7 - 0.4 }, // raio livre do furo (0,4 mm de folga para o elo não encostar)
   };
 }
 
 // ---------------------------------------------------------------- amarrações de barbante e marcadores
 // nó das três correntes: bolo de barbante no ponto p, com as duas pontas soltas pendendo (foto
-// 5_montagem_final/tres_ramos_vista_do_perfil: ~0,2–0,3 m de barbante caindo do nó; estimado)
-function noBarbante(p) {
+// 5_montagem_final/tres_ramos_vista_do_perfil: ~0,2–0,3 m de barbante caindo do nó; estimado). Se a ponta
+// é mais comprida que a altura do nó, o resto fica deitado no piso (op.piso = cota do piso, padrão 0).
+function noBarbante(p, op = {}) {
   if (!Array.isArray(p)) p = [0, 0, 300];
-  const g = G.vazia(), r = rng(77);
+  const g = G.vazia(), r = rng(77), zPiso = (op.piso || 0) + 1.3;
   G.juntar(g, T(G.esfera(9, 12, 8), M.trans(...p), M.esc(1.2, 1, 0.8)));
   for (let k = 0; k < 4; k++) G.juntar(g, T(G.toro(9, 1.2, 14, 4), M.trans(...p), M.rotZ(r() * 3), M.rotX(0.6 + r() * 1.5)));
   for (const [dx, dy, L] of [[6, 3, 230], [-4, -6, 300]]) {
-    const pts = []; for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push([p[0] + dx * (1 + 3 * t) + 10 * Math.sin(5 * t), p[1] + dy * (1 + 2 * t), p[2] - 6 - L * t]); }
+    const queda = Math.min(L, Math.max(0, p[2] - 6 - zPiso)), noAr = (s) => { const t = s / L; return [p[0] + dx * (1 + 3 * t) + 10 * Math.sin(5 * t), p[1] + dy * (1 + 2 * t), p[2] - 6 - s]; };
+    const pts = [], nA = Math.max(2, Math.round(8 * queda / L));
+    for (let i = 0; i <= nA; i++) pts.push(noAr(queda * i / nA));
+    if (queda < L) { // o que sobra deita no piso, numa curva aberta (raio ~70 mm)
+      const b = noAr(queda), f0 = Math.atan2(dy, dx), R = 70, nP = Math.max(2, Math.round((L - queda) / 12));
+      for (let i = 1; i <= nP; i++) { const f = f0 + (L - queda) * i / nP / R; pts.push([b[0] + R * (Math.sin(f) - Math.sin(f0)), b[1] - R * (Math.cos(f) - Math.cos(f0)), zPiso]); }
+    }
     G.juntar(g, G.tubo(pts, 1.1, 5));
   }
   return { partes: [P('barbante', mat('barbante'), g)], pontos: {} };
@@ -708,7 +760,7 @@ function mesaPallet(op = {}) {
   G.juntar(eti, caixaEm(-60, cy0 - 11.5, 200, 30, cy0 - 10.5, 290));
   return {
     partes: [P('pallet (claro)', mat('madeira', { cor: [0.80, 0.66, 0.44] }), pin), P('pallet', mat('madeira', { cor: [0.74, 0.58, 0.36] }), pin2),
-      P('ferro', mat('acoEscuro'), ferro), P('compensado', mat('madeira', { cor: [0.36, 0.25, 0.16] }), comp),
+      P('ferro', mat('acoEscuro'), ferro), P('compensado', mat('madeira', { cor: [0.36, 0.25, 0.16], tex: 'compensado' }), comp),
       P('ripas', mat('madeira', { cor: [0.70, 0.52, 0.30] }), rip), P('etiqueta verde', mat('bolha', { cor: [0.12, 0.35, 0.18], rug: 0.6 }), ver), P('etiqueta', mat('etiqueta'), eti)],
     pontos: { tampo: [0, 0, Ht] },
   };
@@ -735,7 +787,7 @@ function caixasPapelao(op = {}) {
     z += c;
   }
   return {
-    partes: [P('papelão', mat('madeira', { cor: [0.66, 0.50, 0.33], rug: 0.95 }), pap), P('papelão 2', mat('madeira', { cor: [0.60, 0.45, 0.30], rug: 0.95 }), pap2),
+    partes: [P('papelão', mat('madeira', { cor: [0.66, 0.50, 0.33], rug: 0.95, tex: 'papelao', texDir: [0, 0, 1] }), pap), P('papelão 2', mat('madeira', { cor: [0.60, 0.45, 0.30], rug: 0.95, tex: 'papelao', texDir: [0, 0, 1] }), pap2),
       P('fita', mat('fitaPapel', { cor: [0.72, 0.60, 0.42], rug: 0.4 }), fita), P('etiquetas', mat('etiqueta'), eti)],
     pontos: { topo: [0, 0, z] },
   };
@@ -753,11 +805,15 @@ function tabuasEncostadas(op = {}) {
     const inc = 0.10 + r() * 0.12;   // inclinação em relação à vertical (rad)
     const base = Lt * Math.sin(inc); // distância do pé à parede
     const tr = M.cadeia(M.trans(x, -base - e / 2, 0), M.rotX(-inc), M.rotZ((r() - 0.5) * 0.15));
-    G.juntar(mad[i % 2], G.transformar(caixaEm(-w / 2, -e / 2, 0, w / 2, e / 2, Lt), tr));
+    const tb = G.transformar(caixaEm(-w / 2, -e / 2, 0, w / 2, e / 2, Lt), tr);
+    // a tábua inclinada e torcida fica com uma quina abaixo do piso e outra dentro da parede: sobe e afasta o que faltar
+    let zMin = Infinity, yMax = -Infinity;
+    for (let k = 0; k < tb.pos.length; k += 3) { yMax = Math.max(yMax, tb.pos[k + 1]); zMin = Math.min(zMin, tb.pos[k + 2]); }
+    G.juntar(mad[i % 2], T(tb, M.trans(0, -Math.max(0, yMax), -Math.min(0, zMin))));
     x += w * 0.6 + 60 + r() * 80;
   }
   return {
-    partes: [P('tábuas', mat('madeira', { cor: [0.52, 0.36, 0.22] }), mad[0]), P('tábuas 2', mat('madeira', { cor: [0.62, 0.46, 0.30] }), mad[1])],
+    partes: [P('tábuas', mat('madeira', { cor: [0.52, 0.36, 0.22], texDir: [0, 0, 1] }), mad[0]), P('tábuas 2', mat('madeira', { cor: [0.62, 0.46, 0.30], texDir: [0, 0, 1] }), mad[1])],
     pontos: {},
   };
 }
@@ -808,13 +864,16 @@ function letreiro(txt, h, esp = 0.6, traco = 0.16) {
   return { g, larg: x - 1.6 * u };
 }
 
-// conector RJ45 (macho com capa) ao longo de +Z, ponta em z = 0 apontando para −Z; o cabo entra em z = L
-function rj45() {
-  const corpo = G.juntar(caixaEm(-6, -4.5, 0, 6, 4.5, 21), caixaEm(-3, 4.5, 6, 3, 6.5, 18)); // corpo + trava
+// conector RJ45 (macho com capa) ao longo de +Z, ponta em z = 0 apontando para −Z; o cabo entra em z = L.
+// encaixado = true: só o que fica para fora da tomada (os últimos 7 mm do corpo e a capa); a face da tomada é z = z0
+function rj45(encaixado = false) {
+  const z0 = encaixado ? 14 : 0;
+  const corpo = caixaEm(-6, -4.5, z0, 6, 4.5, 21);
+  if (!encaixado) G.juntar(corpo, caixaEm(-3, 4.5, 6, 3, 6.5, 18)); // trava
   const capa = G.juntar(T(G.revolucao([[6.2, 0], [5.8, 10], [4.3, 22], [3.8, 26]], 12), M.trans(0, 0, 20)));
   const contatos = G.vazia();
-  for (let k = 0; k < 8; k++) G.juntar(contatos, caixaEm(-4.6 + k * 1.3, -4.7, 1, -4.0 + k * 1.3, -4.4, 6));
-  return { corpo, capa, contatos, L: 46 };
+  if (!encaixado) for (let k = 0; k < 8; k++) G.juntar(contatos, caixaEm(-4.6 + k * 1.3, -4.7, 1, -4.0 + k * 1.3, -4.4, 6));
+  return { corpo, capa, contatos, L: 46, z0 };
 }
 
 // ---------------------------------------------------------------- telas "pintadas"
@@ -1076,6 +1135,7 @@ function notebook(op = {}) {
   const tela = [0, b0 + sh / 2, 0.3];
   return {
     partes,
+    normais: { porta: [-1, 0, 0], portaRede: q ? [-1, 0, 0] : [0, 1, 0] }, // para fora da face de cada porta
     pontos: { porta, portaRede, energia, tela: [mT[0] * tela[0] + mT[4] * tela[1] + mT[8] * tela[2] + mT[12], mT[1] * tela[0] + mT[5] * tela[1] + mT[9] * tela[2] + mT[13], mT[2] * tela[0] + mT[6] * tela[1] + mT[10] * tela[2] + mT[14]] },
   };
 }
@@ -1155,6 +1215,7 @@ function syncUnit(op = {}) {
       P('portas', matE('plasticoPreto', { cor: [0.01, 0.01, 0.01] }), furos), P('ponto vermelho do logo', { cor: [0.85, 0.16, 0.12], metal: 0, rug: 0.5 }, dots),
       P('LEDs', { cor: [0.2, 0.9, 0.3], metal: 0, rug: 0.3, emissivo: [0.1, 0.6, 0.2] }, led)],
     pontos: { entrada: pR(rj[0], 32), saida: pR(rj[1], 32) },
+    normais: { entrada: [1, 0, 0], saida: [1, 0, 0] },
   };
 }
 
@@ -1281,6 +1342,7 @@ function baseCelulas(op = {}) {
       P('código de barras', matE('plasticoPreto'), barras)],
     pontos: { entradas: terminais.map((ps) => pF([(ps[1][0] + ps[2][0]) / 2, ps[0][1], ps[0][2]])), terminais: terminais.map((ps) => ps.map(pF)),
       saida: [A / 2, 39.9, 19.1], alimentacao: [A / 2 + 6, -40, 15.3], frente: [-1, 0, 0] },
+    normais: { saida: [1, 0, 0] },
   };
 }
 
@@ -1305,7 +1367,7 @@ function mesaApoio(op = {}) {
   G.juntar(pes, caixaEm(-xp + ep / 2, yt - 60, zc - 330, xp - ep / 2, yt - 42, zc));
   G.juntar(estr, caixaEm(-xp + ep / 2, yf + 30, zc - 40, xp - ep / 2, yf + 55, zc));
   return {
-    partes: [P('tampo', matE('cinzaChapa', { cor: [0.69, 0.70, 0.69], metal: 0.05, rug: 0.5 }), tampo), P('borda do tampo', matE('cinzaChapaEsc', { cor: [0.30, 0.31, 0.32], metal: 0, rug: 0.6 }), borda),
+    partes: [P('tampo', matE('cinzaChapa', { cor: [0.69, 0.70, 0.69], metal: 0.05, rug: 0.5, tex: 'pintura' }), tampo), P('borda do tampo', matE('cinzaChapaEsc', { cor: [0.30, 0.31, 0.32], metal: 0, rug: 0.6 }), borda),
       P('pés e painel', matE('cinzaChapa', { cor: [0.62, 0.63, 0.63] }), pes), P('travessa', matE('cinzaChapaEsc', { cor: [0.42, 0.43, 0.44], metal: 0.4 }), estr),
       P('sapatas', matE('plasticoPreto'), sap), P('furos', matE('plasticoPreto', { cor: [0.03, 0.03, 0.03] }), furos)],
     pontos: { tampo: [0, 0, H], vao: [[-xp + ep / 2, yf, 0], [xp - ep / 2, yt - 60, zc - 40]] },
@@ -1344,10 +1406,29 @@ function quadros(pts) {
   }
   return Q;
 }
+// tira os últimos `compr` mm de uma polilinha
+function aparar(pts, compr) {
+  const out = pts.slice();
+  while (out.length > 2) {
+    const a = out[out.length - 2], b = out[out.length - 1], d = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (d > compr) { const t = 1 - compr / d; out[out.length - 1] = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]; break; }
+    compr -= d; out.pop();
+  }
+  return out;
+}
 // cabo(pontos, op): op.raio (3,5), op.cor ([r,g,b]), op.ramais (rabichos nas pontas), op.conectores (RJ45 nas
 // pontas; padrão = op.ramais), op.fios = n (n fios trançados + terra verde-amarelo), op.cores (cores dos fios),
 // op.malha (com op.fios: malha de blindagem no lugar do terra, sem pontas de cobre).
+// op.plugueInicio / op.plugueFim = false | true | 'encaixado' valem só para aquela ponta. 'encaixado': a ponta da
+// polilinha é a boca de uma tomada; o cabo é encurtado e só aparece o que fica para fora dela (o conector não
+// entra no aparelho).
 function cabo(pontosIn, op = {}) {
+  const padrao = op.conectores !== undefined ? op.conectores : !!op.ramais;
+  const plugue = { inicio: op.plugueInicio !== undefined ? op.plugueInicio : padrao, fim: op.plugueFim !== undefined ? op.plugueFim : padrao }, boca = {};
+  if (!op.fios) { // encaixado: tira do cabo o trecho que o conector ocupa (32 mm para fora da tomada)
+    if (plugue.fim === 'encaixado') { boca.fim = pontosIn[pontosIn.length - 1]; pontosIn = aparar(pontosIn, 32); }
+    if (plugue.inicio === 'encaixado') { boca.inicio = pontosIn[0]; pontosIn = aparar(pontosIn.slice().reverse(), 32).reverse(); }
+  }
   const raio = op.raio || 3.5, pts = reamostrar(pontosIn, op.passo || Math.max(8, raio * 4));
   const corCabo = op.cor ? { cor: op.cor, metal: 0, rug: 0.45 } : matE('caboPreto');
   const partes = [], n = pts.length;
@@ -1384,7 +1465,6 @@ function cabo(pontosIn, op = {}) {
   }
   const corpo = G.tubo(pts, raio, 8);
   const pontos = { inicio: ini, fim };
-  const conect = op.conectores !== undefined ? op.conectores : !!op.ramais;
   const plug = G.vazia(), capa = G.vazia(), cont = G.vazia();
   const Q = quadros(pts);
   const ponta = (idx, sinal) => { // sinal: +1 = início (cabo segue para +t), −1 = fim
@@ -1392,7 +1472,12 @@ function cabo(pontosIn, op = {}) {
     return { p, d, u };
   };
   for (const [idx, sinal, nome] of [[0, 1, 'inicio'], [n - 1, -1, 'fim']]) {
-    const { p, d, u } = ponta(idx, sinal);
+    let { p, d, u } = ponta(idx, sinal);
+    if (boca[nome]) { // aponta para a boca da tomada e refaz u ⟂ d
+      const v = [boca[nome][0] - p[0], boca[nome][1] - p[1], boca[nome][2] - p[2]], vl = Math.hypot(...v) || 1; d = v.map((x) => x / vl);
+      const k = u[0] * d[0] + u[1] * d[1] + u[2] * d[2]; u = [u[0] - k * d[0], u[1] - k * d[1], u[2] - k * d[2]];
+      const ul = Math.hypot(...u); u = ul > 1e-6 ? u.map((x) => x / ul) : (Math.abs(d[2]) < 0.9 ? [-d[1], d[0], 0].map((x) => x / Math.hypot(d[0], d[1])) : [1, 0, 0]);
+    }
     if (op.ramais) {
       // dois rabichos laterais curtos saindo a ~60 mm da ponta, abrindo em leque
       const k0 = Math.min(n - 1, Math.max(0, idx + sinal * Math.round(60 / (op.passo || Math.max(8, raio * 4)))));
@@ -1405,8 +1490,8 @@ function cabo(pontosIn, op = {}) {
         pontos[nome + (s < 0 ? 'RamalA' : 'RamalB')] = rab[10];
       }
     }
-    if (conect) {
-      const r = rj45();
+    if (plugue[nome]) {
+      const r = rj45(plugue[nome] === 'encaixado');
       // o conector fica além da ponta, apontando na direção d (saindo do cabo)
       const m = M.cadeia([u[0], u[1], u[2], 0, ...(() => { const y = [u[1] * d[2] - u[2] * d[1], u[2] * d[0] - u[0] * d[2], u[0] * d[1] - u[1] * d[0]]; return [y[0], y[1], y[2], 0]; })(),
         -d[0], -d[1], -d[2], 0, p[0] + d[0] * r.L, p[1] + d[1] * r.L, p[2] + d[2] * r.L, 1]);

@@ -10,7 +10,15 @@
 //   abertura    raio, no chão, dos pés das pernas, mm (padrão 600)
 //   giroPernas  giro do tripé em torno da coluna, em relação à câmera, rad (padrão 0): a cabeça gira solta,
 //               então as pernas podem ser viradas para não bater num móvel
-// pontos.pes = [[quadril, pé], …] de cada perna (para testar colisão); pontos.caboFim = fim do cabo no chão.
+//   cabos       quantos cabos o próprio modelo desenha (0, 1 ou 2; padrão 1). A Miqus tem duas portas de rede
+//               atrás (entrada e saída da ligação em série); com cabos: 0 a cena desenha os cabos inteiros, de
+//               câmera a câmera, pelos pontos de pontos.cabos
+//   plugues     quantas portas têm conector encaixado (padrão = cabos)
+//   azCabo      azimute (rad, no quadro da câmera; π = bem atrás) em que os cabos caem; sem ele, o modelo escolhe
+//               o mais perto de "bem atrás" que fique livre das pernas (a cena passa o seu, livre também dos móveis)
+// pontos.pes = [[quadril, pé], …] de cada perna (para testar colisão); pontos.cabos = [rota 0, rota 1]: pontos de
+// controle de cada cabo, da porta até o chão (ele sai para trás, faz a curva e cai solto atrás do tripé, como nas
+// fotos, num azimute livre das pernas); pontos.caboFim = fim do cabo 0 no chão.
 // Sistema local: origem no chão, no centro do tripé; Z para cima; eixo óptico para +X
 // (inclinado no plano XZ). Unidades em mm.
 (() => {
@@ -311,21 +319,27 @@ function cameraTripe(op = {}) {
     for (const g of Pinc[k]) P[k].push(T(g, mInc));
     for (const g of Pcam[k]) P[k].push(T(g, mCam));
   }
-  // cabo: sai do conector traseiro, faz uma curva para trás e desce encostado na perna 2 até o chão
-  const c0 = aplicar(mCam, [-CAM.comp / 2 - 6, 14, CAM.alt - 22]);
-  const c1 = aplicar(mCam, [-CAM.comp / 2 - 45, 16, CAM.alt - 10]);
-  const c2 = aplicar(mCam, [-CAM.comp / 2 - 95, 30, CAM.alt - 70]);
-  const pe = pes[1], ladoPerna = (t, off) => add(add(pe.at(t), mulv(pe.nOut, off)), [0, 0, 0]);
-  const c3 = ladoPerna(0.22 * pe.L, 40), c4 = ladoPerna(0.5 * pe.L, 26), c5 = ladoPerna(0.85 * pe.L, 30);
-  const c6 = add(pe.F, add(mulv(pe.nOut, 60), [0, 0, -30 + 5]));
-  const cg = Math.cos(giroP), sg = Math.sin(giroP), noChao = (x, y) => [x * cg - y * sg, x * sg + y * cg, -30 + 5]; // acompanha o giro das pernas
-  const c7 = add(pe.F, add(mulv(pe.nOut, 200), noChao(-60, 40)));
-  const c8 = add(pe.F, add(mulv(pe.nOut, 520), noChao(-180, 140)));
-  c6[2] = 8; c7[2] = 4.5; c8[2] = 4.5; // no chão (nOut tem componente vertical)
-  const fio = spline([c0, c1, c2, c3, c4, c5, c6, c7, c8], 8);
-  fio.forEach((p) => { p[2] = Math.max(p[2], 4); });
-  P.cabo.push(G.tubo(fio, 3.6, 8));
-  P.cabo.push(T(G.caixaArred(16, 18, 14, 4), M.trans(...c0), mCam.slice(0, 12).concat([0, 0, 0, 1])));
+  // cabos: cada um sai do conector da sua porta, faz a curva para trás e cai solto até o chão, atrás do tripé
+  // (fotos 2_montagem/visao_geral_cameras e 1_equipamento/camera_traseira_numero_serie). A queda fica num azimute
+  // livre das pernas (≥ 13° de cada uma), o mais perto possível de "bem atrás" da câmera; o 2º cabo cai 18 mm
+  // mais longe, para os dois não se tocarem.
+  const nCabos = op.cabos ?? 1, nPlugues = op.plugues ?? nCabos, xPlug = -CAM.comp / 2 - 13, zPorta = CAM.alt - 22;
+  const pernasAz = AZ0.map((az) => az + giroP), difAng = (p, q) => Math.abs(Math.atan2(Math.sin(p - q), Math.cos(p - q)));
+  let azQueda = op.azCabo;
+  if (azQueda == null) { azQueda = Math.PI; for (const d of [0, 14, -14, 28, -28, 42, -42, 56, -56]) { const az = Math.PI + rad(d); if (pernasAz.every((p) => difAng(p, az) >= rad(13))) { azQueda = az; break; } } }
+  const fora = [Math.cos(azQueda), Math.sin(azQueda), 0], lado = [-fora[1], fora[0], 0];
+  const cabos = [14, -14].map((y, k) => {
+    const p0 = aplicar(mCam, [xPlug - 9.5, y, zPorta]), p1 = aplicar(mCam, [xPlug - 42, y, zPorta + 6]); // começa 1,5 mm atrás do conector
+    const rq = 250 + 18 * k, D = [fora[0] * rq, fora[1] * rq], sg = k ? -1 : 1;
+    const chao = (r, l, z) => [fora[0] * r + lado[0] * l, fora[1] * r + lado[1] * l, z];
+    const pts = [p0, p1, [(p1[0] + D[0]) / 2, (p1[1] + D[1]) / 2, p1[2] - 14], [D[0], D[1], p1[2] - 95]];
+    if (p1[2] > 700) pts.push([D[0], D[1], 420]);
+    pts.push([D[0], D[1], 75], chao(rq + 42, sg * 4, 7), chao(rq + 130, sg * 22, 4.5));
+    return pts;
+  });
+  for (let k = 0; k < Math.min(2, nPlugues); k++) P.cabo.push(T(G.caixaArred(16, 18, 14, 4), mCam, M.trans(xPlug, k ? -14 : 14, zPorta))); // conector na porta
+  for (let k = 0; k < Math.min(2, nCabos); k++) { const fio = spline(cabos[k], 8); fio.forEach((p) => { p[2] = Math.max(p[2], 4); }); P.cabo.push(G.tubo(fio, 3.6, 8)); }
+  const c8 = cabos[0][cabos[0].length - 1], c7 = cabos[0][cabos[0].length - 2];
   // junta tudo por material
   const partes = [];
   for (const k in MAT) {
@@ -334,8 +348,8 @@ function cameraTripe(op = {}) {
     partes.push(G.parte(k, MAT[k], g));
   }
   const eixo = aplicar(R, [1, 0, 0]);
-  // pontos.caboFim: onde o cabo da câmera termina no chão (para emendar a ligação em série); caboDir: direção
-  return { partes, centroOptico: aplicar(mInc, oLocal), eixo, pontos: { caboFim: c8, caboDir: [c8[0] - c7[0], c8[1] - c7[1], 0], pes: pes.map((q) => [q.H, q.F]) } };
+  // pontos.caboFim: onde o cabo 0 da câmera chega ao chão; caboDir: direção em que ele segue
+  return { partes, centroOptico: aplicar(mInc, oLocal), eixo, pontos: { caboFim: c8, caboDir: [c8[0] - c7[0], c8[1] - c7[1], 0], cabos, pes: pes.map((q) => [q.H, q.F]) } };
 }
 
 window.LAB_MODELOS = window.LAB_MODELOS || {};

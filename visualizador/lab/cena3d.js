@@ -96,26 +96,34 @@ vec3 misturaPiso(vec3 foto, vec3 dir, vec2 xy, vec2 uvT, vec2 gx, vec2 gy) {
 }
 `;
 
+// material.tex: textura procedural calculada no shader (sem imagens), na posição do modelo. texDir = direção do
+// veio (madeira, compensado, papelão); texEsc = escala do desenho.
+const TEXTURAS = { pintura: 1, madeira: 2, compensado: 3, concreto: 4, ferrugem: 5, metal: 6, papelao: 7, lascada: 8, fosco: 9 };
+
 const VS_OBJ = `#version 300 es
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aNor;
 layout(location = 2) in vec2 aUV;
 uniform mat4 uVP, uM;
 uniform mat3 uN;
-out vec3 vP, vN;
+out vec3 vP, vN, vL;
 out vec2 vUV;
 void main() {
   vec4 w = uM * vec4(aPos, 1.0);
-  vP = w.xyz; vN = normalize(uN * aNor); vUV = aUV;
+  vP = w.xyz; vN = normalize(uN * aNor); vUV = aUV; vL = aPos; // vL: posição no modelo (a textura procedural anda com a peça)
   gl_Position = uVP * w;
 }`;
 
 const FS_OBJ = `#version 300 es
 precision highp float;
 ${COMUM}
-in vec3 vP, vN;
+in vec3 vP, vN, vL;
 uniform vec3 uEye, uCor, uEmis;
 uniform float uMetal, uRug;
+uniform int uTex;        // textura procedural do material (0 = cor lisa); ver TEXTURAS
+uniform vec3 uTexDir;    // direção do veio (madeira, papelão), no sistema do modelo
+uniform float uTexEsc;   // escala do desenho (1 = tamanho natural, em mm)
+float gMetal;
 uniform vec3 uSH[9];
 uniform sampler2D uEnv;
 uniform float uEnvLod, uEnvInt, uExpo, uNormalBias;
@@ -147,8 +155,83 @@ vec3 direta(vec3 N, vec3 V, vec3 L, vec3 Li, vec3 alb, vec3 F0, float rug) {
   float G = NoV / (NoV * (1.0 - k) + k) * NoL / (NoL * (1.0 - k) + k);
   vec3 F = F0 + (1.0 - F0) * pow(1.0 - VoH, 5.0);
   vec3 spec = D * G * F / (4.0 * NoV * NoL + 1e-4);
-  vec3 kd = (1.0 - F) * (1.0 - uMetal);
+  vec3 kd = (1.0 - F) * (1.0 - gMetal);
   return (kd * alb / PI + spec) * Li * NoL;
+}
+// ---- texturas procedurais: ruído de valor 3D na posição do modelo (mm), sem imagens
+float h31(vec3 p) { p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419)); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float vn(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h31(i), h31(i + vec3(1, 0, 0)), f.x), mix(h31(i + vec3(0, 1, 0)), h31(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(h31(i + vec3(0, 0, 1)), h31(i + vec3(1, 0, 1)), f.x), mix(h31(i + vec3(0, 1, 1)), h31(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+// De longe, um desenho mais fino que o pixel vira chuvisco: cada parcela some (vai para a média) quando o tamanho
+// do seu grão (c, em mm) fica menor que o pixel (gPx)
+float gPx;
+float att(float c) { return 1.0 - smoothstep(0.10 * c, 0.40 * c, gPx); } // o grão precisa de pelo menos ~2,5 pixels
+float ru(vec3 p, float c) { return mix(0.5, vn(p / c), att(c)); }                       // ruído de grão c
+float fbm(vec3 p, float c) { float a = 0.5, s = 0.0; p /= c; for (int i = 0; i < 4; i++) { s += a * mix(0.5, vn(p), att(c)); p = p * 2.03 + 11.7; a *= 0.5; c *= 0.5; } return s / 0.9375; }
+const vec3 FERRUGEM = vec3(0.150, 0.052, 0.022), FERRUGEM2 = vec3(0.060, 0.026, 0.014); // linear
+// altera a cor (linear), a rugosidade e o metal conforme uTex; devolve o relevo (para inclinar a normal)
+float textura(vec3 p, inout vec3 cor, inout float rug) {
+  p /= uTexEsc;
+  gPx = max(max(length(dFdx(vL)), length(dFdy(vL))), 1e-4) / uTexEsc;
+  vec3 d = normalize(uTexDir);
+  float ao = dot(p, d); vec3 pp = p - d * ao;
+  if (uTex == 1) { // pintura / plástico: manchas largas bem leves e sujeira fina
+    float n = fbm(p, 55.0), f = ru(p, 3.0);
+    cor *= 0.90 + 0.20 * n; rug = clamp(rug + 0.10 * (f - 0.5), 0.04, 1.0);
+    return 0.0;
+  }
+  if (uTex == 2) { // madeira serrada: veio comprido na direção d, com anéis irregulares
+    vec3 q = pp + d * (ao * 0.043);
+    float n = fbm(q, 6.0), k = att(5.0), veio = mix(0.5, 0.5 + 0.5 * sin(n * 26.0 + ao / 60.0), k), fino = ru(pp + d * (ao * 0.036), 0.9);
+    cor *= 0.74 + 0.30 * mix(n, veio, 0.45) + 0.08 * (fino - 0.5);
+    float noz = smoothstep(0.80, 0.86, fbm(pp + d * (ao * 0.43) + 120.0, 30.0)); // nós
+    cor = mix(cor, cor * vec3(0.42, 0.34, 0.28), noz);
+    rug = clamp(rug + 0.10 * (veio - 0.5), 0.04, 1.0);
+    return 0.5 * veio;
+  }
+  if (uTex == 3) { // compensado: lâmina desenrolada, com veios largos ("catedrais")
+    vec3 q = pp + d * (ao * 0.167);
+    float n = fbm(q, 55.0), veio = mix(0.5, 0.5 + 0.5 * sin(n * 34.0), att(9.0)), fino = ru(pp + d * (ao * 0.086), 1.2);
+    cor *= 0.80 + 0.22 * n + 0.10 * (veio - 0.5) + 0.07 * (fino - 0.5);
+    return 0.25 * veio;
+  }
+  if (uTex == 4) { // concreto: nuvens, poros e agregado
+    float n = fbm(p, 38.0), g = ru(p, 2.6), poro = smoothstep(0.80, 0.90, ru(p + 45.0, 5.0));
+    cor *= 0.76 + 0.40 * n + 0.10 * (g - 0.5);
+    cor *= 1.0 - 0.45 * poro; rug = 1.0;
+    return g - poro;
+  }
+  if (uTex == 5) { // aço com carepa e ferrugem em placas
+    float n = fbm(p, 42.0), f = fbm(p + 21.0, 7.0), m = smoothstep(0.50, 0.72, n * 0.75 + f * 0.25);
+    cor = mix(cor * (0.85 + 0.25 * f), mix(FERRUGEM2, FERRUGEM, f), m * 0.6);
+    rug = mix(rug, 0.95, m); gMetal *= 1.0 - 0.9 * m;
+    return f * m;
+  }
+  if (uTex == 6) { // metal nu (zincado, alumínio, aço polido): manchas de brilho e riscos finos
+    float n = fbm(p, 18.0), r = ru(vec3(dot(pp, vec3(0.61, 0.52, 0.60)), ao * 0.015, 1.7), 0.45);
+    cor *= 0.88 + 0.20 * n; rug = clamp(rug + 0.16 * (n - 0.5) + 0.08 * (r - 0.5), 0.04, 1.0);
+    return 0.0;
+  }
+  if (uTex == 7) { // papelão: ondas do miolo aparecendo de leve, manchas e fibra
+    float onda = mix(0.5, 0.5 + 0.5 * sin(ao * 0.9), att(3.5)), n = fbm(p, 60.0), f = ru(p, 1.5);
+    cor *= 0.88 + 0.16 * n + 0.035 * (onda - 0.5) + 0.06 * (f - 0.5);
+    return 0.0;
+  }
+  if (uTex == 8) { // tinta velha lascada: a ferrugem aparece nas lascas
+    float n = fbm(p, 26.0), f = fbm(p + 35.0, 5.0), m = smoothstep(0.60, 0.66, n * 0.7 + f * 0.3);
+    cor *= 0.82 + 0.30 * fbm(p + 140.0, 70.0);
+    cor = mix(cor, mix(FERRUGEM2, FERRUGEM, f), m);
+    rug = mix(rug, 0.95, m); gMetal *= 1.0 - m;
+    return -m;
+  }
+  if (uTex == 9) { // borracha / plástico fosco: só um grão fino
+    float f = ru(p, 1.3); cor *= 0.9 + 0.2 * f; rug = clamp(rug + 0.08 * (f - 0.5), 0.04, 1.0);
+    return 0.0;
+  }
+  return 0.0;
 }
 vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
 void main() {
@@ -158,8 +241,18 @@ void main() {
   if (dot(N, V) < 0.0) N = normalize(N - V * dot(N, V) * 1.01); // normal de costas (malhas abertas)
   vec3 cor = lin3(uCor);
   float rug = clamp(uRug, 0.04, 1.0);
-  vec3 alb = cor * (1.0 - uMetal);
-  vec3 F0 = mix(vec3(0.04), cor, uMetal);
+  gMetal = uMetal;
+  if (uTex != 0) {
+    // relevo: a normal inclina pela variação do desenho na tela (derivadas), sem precisar de tangentes
+    float h = textura(vL, cor, rug);
+    vec3 dpx = dFdx(vP), dpy = dFdy(vP);
+    float hx = dFdx(h), hy = dFdy(h);
+    vec3 r1 = cross(dpy, N), r2 = cross(N, dpx);
+    float det = dot(dpx, r1);
+    if (abs(det) > 1e-9) { vec3 g = (r1 * hx + r2 * hy) / det; N = normalize(N - clamp(g * 0.6, -0.6, 0.6)); }
+  }
+  vec3 alb = cor * (1.0 - gMetal);
+  vec3 F0 = mix(vec3(0.04), cor, gMetal);
   float vis = visLuz(vP + N * uNormalBias);
   vec3 c = direta(N, V, normalize(uLuzDir), uLuzCor * vis, cor, F0, rug)
          + direta(N, V, normalize(uLuz2Dir), uLuz2Cor, cor, F0, rug);
@@ -167,7 +260,7 @@ void main() {
   float NoV = max(dot(N, V), 1e-3);
   vec2 ab = envBRDF(rug, NoV);
   vec3 Fr = F0 * ab.x + ab.y;
-  vec3 kd = (1.0 - Fr) * (1.0 - uMetal);
+  vec3 kd = (1.0 - Fr) * (1.0 - gMetal);
   float ao = mix(0.6, 1.0, vis);
   c += kd * alb * irradiancia(N) / PI * uEnvInt * ao;
   // ambiente especular: panorama num mip conforme a rugosidade
@@ -573,6 +666,7 @@ function criar(canvas, op = {}) {
     const proj = !!m.projetado; // proxies não projetam sombra (já estão na foto)
     const assado = !!m.assado;  // idem para a sala com textura assada
     return { vao, bufs, n: parte.idx.length, cor: m.cor || [0.7, 0.7, 0.7], metal: m.metal || 0, rug: m.rug == null ? 0.5 : m.rug, emis: m.emissivo || [0, 0, 0],
+      ptex: TEXTURAS[m.tex] || 0, ptexDir: m.texDir || [1, 0, 0], ptexEsc: m.texEsc || 1,
       sombra: m.sombra !== false && !proj && !assado, proj, assado, tex: m.textura ? texturaMaterial(m.textura) : null,
       realce: m.realce || 0, ao: m.ao == null ? 0 : m.ao };
   }
@@ -748,6 +842,7 @@ function criar(canvas, op = {}) {
         if (p.proj || p.assado) continue;
         gl.uniform3fv(u.uCor, p.cor); gl.uniform3fv(u.uEmis, p.emis);
         gl.uniform1f(u.uMetal, p.metal); gl.uniform1f(u.uRug, p.rug);
+        gl.uniform1i(u.uTex, p.ptex); if (p.ptex) { gl.uniform3fv(u.uTexDir, p.ptexDir); gl.uniform1f(u.uTexEsc, p.ptexEsc); }
         gl.bindVertexArray(p.vao);
         gl.drawElements(gl.TRIANGLES, p.n, gl.UNSIGNED_INT, 0);
       }
