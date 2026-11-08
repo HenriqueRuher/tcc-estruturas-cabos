@@ -479,7 +479,8 @@ function montar(cena, alvo, marcadores) {
     // detalhe repetível das fotos (experimento/texturas_detalhe.py) e juntas nítidas das lajotas sobre o atlas
     const DET = {
       piso: { ...mat, detalhe: 'img/lab/det_piso.jpg', detLado: 150, detForca: 0.75, junta: 0.3, juntaFase: CONFIG.piso.juntaFase },
-      paredes: { ...mat, detalhe: 'img/lab/det_parede.jpg', detLado: 425 },
+      // paredes: textura da parede pintada no lugar do atlas; cor = média das paredes no atlas (sRGB)
+      paredes: { ...mat, detalhe: 'img/lab/parede.jpg', detLado: 380, substituir: 1, substCor: [0.75, 0.75, 0.725] },
       teto: { ...mat, detalhe: 'img/lab/det_parede.jpg', detLado: 425, detForca: 0.6 },
     };
     add('sala', { partes: window.LAB_SALA.partes.filter((p) => !fora(p.nome)).map((p) => ({ nome: p.nome, material: DET[p.nome] || mat,

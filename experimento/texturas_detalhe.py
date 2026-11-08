@@ -58,5 +58,22 @@ def main():
         print(f'{nome}.jpg  desvio {det.std():.3f}  média {det.mean():.3f}')
 
 
+def parede_cor():
+    """Textura de PAREDE completa (substitui o atlas nas paredes): recorte da parede pintada, sem a variação
+    de iluminação da foto (dividida pela própria média borrada), repetível e com média 1 (gravada como 0,5).
+    O shader multiplica pela cor média das paredes no atlas, então a textura só traz manchas e o grão."""
+    im = Image.open(FOTOS / 'corrente_perfil_na_parede.jpg').convert('RGB').crop((480, 430, 705, 655)).resize((N, N), Image.LANCZOS)
+    a = gaussian_filter(np.asarray(im, float) / 255.0, (1.5, 1.5, 0), mode='reflect')
+    lum = a.mean(2, keepdims=True)
+    rel = lum / gaussian_filter(lum, (0.18 * N, 0.18 * N, 0), mode='reflect') - 1.0   # manchas relativas, sem gradiente de luz
+    s = seamless(rel - rel.mean())
+    sd = s.std()
+    s = 3.0 * sd * np.tanh(s / (3.0 * sd))
+    tex = np.clip(0.5 * (1.0 + 2.5 * s), 0, 1).repeat(3, 2)
+    Image.fromarray((tex * 255).round().astype(np.uint8)).save(SAIDA / 'parede.jpg', quality=92)
+    print(f'parede.jpg  desvio {tex.std():.3f}  média {tex.mean():.3f}')
+
+
 if __name__ == '__main__':
     main()
+    parede_cor()

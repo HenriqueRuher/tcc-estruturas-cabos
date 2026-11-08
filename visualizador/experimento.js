@@ -553,7 +553,7 @@ function irParaPano() {
 }
 function salvarLab() { try { localStorage.setItem('qtm-lab', JSON.stringify({ lab: S.lab, montagem: S.montagem })); } catch (e) { /* sem storage */ } }
 function carregarScript(src) {
-  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261108a'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
+  return new Promise((ok, erro) => { const s = document.createElement('script'); s.src = src + '?v=20261108b'; s.onload = ok; s.onerror = () => erro(new Error(src)); document.head.appendChild(s); });
 }
 async function ligarLab() {
   $('#btnPano').hidden = !S.lab || LAB.estado === 'falhou';

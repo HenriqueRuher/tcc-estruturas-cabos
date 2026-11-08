@@ -315,7 +315,8 @@ in vec3 vP, vN, vL;
 in vec2 vUV;
 uniform sampler2D uTex;
 uniform sampler2D uDet;     // detalhe repetível (média 0,5) extraído das fotos: experimento/texturas_detalhe.py
-uniform float uSombraForca, uNormalBias, uRealce, uAO, uDetLado, uDetForca, uJunta;
+uniform float uSombraForca, uNormalBias, uRealce, uAO, uDetLado, uDetForca, uJunta, uSubst;
+uniform vec3 uSubstCor;     // cor média da superfície no atlas (a textura substituta tem média 0,5)
 uniform vec2 uJuntaFase;    // fase da grade de lajotas de 300 mm no sistema da sala (medida no atlas)
 uniform vec3 uLuzDir;
 out vec4 saida;
@@ -326,7 +327,17 @@ void main() {
     vec3 nl = abs(normalize(cross(dFdx(vL), dFdy(vL))));
     bool horiz = nl.z > 0.7;
     vec2 st = horiz ? vL.xy : (nl.x > nl.y ? vL.yz : vL.xz);
-    col *= mix(vec3(1.0), 2.0 * texture(uDet, st / uDetLado).rgb, uDetForca);
+    if (uSubst > 0.0 && !horiz) {
+      // parede: troca o atlas (projeção borrada do panorama, com "fantasmas" dos móveis) pela parede pintada
+      // das fotos, repetível, na cor média do atlas; variação larga (outra escala da mesma textura) e sujeira
+      // perto do rodapé, para a repetição não aparecer
+      float larga = 2.0 * texture(uDet, st / (uDetLado * 7.3) + 0.37).r - 1.0;
+      vec3 parede = uSubstCor * 2.0 * texture(uDet, st / uDetLado).rgb * (1.0 + 0.6 * larga);
+      parede *= mix(0.86, 1.0, smoothstep(0.0, 700.0, vL.z));
+      col = mix(col, parede, uSubst);
+    } else {
+      col *= mix(vec3(1.0), 2.0 * texture(uDet, st / uDetLado).rgb, uDetForca);
+    }
     if (uJunta > 0.0 && horiz) {
       // juntas nítidas das lajotas sobre as do atlas (somem de longe, onde o atlas já basta)
       vec2 d = abs(fract((vL.xy - uJuntaFase) / 300.0 + 0.5) - 0.5) * 300.0; // mm até a junta mais próxima
@@ -687,7 +698,7 @@ function criar(canvas, op = {}) {
       sombra: m.sombra !== false && !proj && !assado, proj, assado, tex: m.textura ? texturaMaterial(m.textura) : null,
       realce: m.realce || 0, ao: m.ao == null ? 0 : m.ao,
       det: m.detalhe ? texturaMaterial(m.detalhe) : null, detLado: m.detLado || 300, detForca: m.detalhe ? (m.detForca == null ? 1 : m.detForca) : 0,
-      junta: m.junta || 0, juntaFase: m.juntaFase || [0, 0] };
+      junta: m.junta || 0, juntaFase: m.juntaFase || [0, 0], subst: m.substituir || 0, substCor: m.substCor || [0.66, 0.66, 0.64] };
   }
   function caixaLocal(modelo) {
     const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
@@ -894,6 +905,7 @@ function criar(canvas, op = {}) {
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, p.det ? p.det.tex : texCinza);
           gl.uniform1f(v.uDetForca, p.det && p.det.tex !== texCinza ? p.detForca : 0); gl.uniform1f(v.uDetLado, p.detLado);
           gl.uniform1f(v.uJunta, p.junta); gl.uniform2fv(v.uJuntaFase, p.juntaFase);
+          gl.uniform1f(v.uSubst, p.det && p.det.tex !== texCinza ? p.subst : 0); gl.uniform3fv(v.uSubstCor, p.substCor);
           gl.activeTexture(gl.TEXTURE0);
           gl.bindVertexArray(p.vao);
           gl.drawElements(gl.TRIANGLES, p.n, gl.UNSIGNED_INT, 0);
