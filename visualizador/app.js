@@ -26,10 +26,10 @@ const POS = FR.map((f) => SIM.nos0.map((p, k) => [p[0] + f.u[k][0], p[1] + f.u[k
 const hyp = Math.hypot;
 const QTY = {
   sigma: {
-    nome: 'Tensão axial σ = N/A', un: 'MPa', dig: 2,
+    nome: 'Tensão axial σ = N / A', un: 'MPa', dig: 2,
     curto: 'σ axial',
     elem: (b) => [b[0] / AREA / 1e6, b[1] / AREA / 1e6],
-    nota: 'Tensão normal média na seção: σ = N/A, com A = π·r². Só a inércia foi reduzida (seção ASEC), então EA e σ não mudam. É a grandeza relevante para um cabo ideal.',
+    nota: 'Tensão normal média na seção: σ = N / A, com A = π·r². Só a inércia foi reduzida (seção ASEC), então EA e σ não mudam. É a grandeza relevante para um cabo ideal.',
   },
   forca: {
     nome: 'Força axial N', un: 'N', dig: 0,

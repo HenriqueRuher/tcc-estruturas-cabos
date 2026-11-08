@@ -62,6 +62,7 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+html { background: var(--bg); }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -381,6 +382,7 @@ a.opcao:hover { border-color: var(--accent); transform: translateY(-2px); }
 .opcao.breve { opacity: .6; }
 .opcao.breve .ir { color: var(--muted); }
 @media (max-width: 860px) { .opcoes { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .opcao { transition: border-color .15s; } a.opcao:hover { transform: none; } }
 
 /* ---------- créditos (página inicial) ---------- */
 .creditos-btn { display: inline-flex; align-items: center; gap: 7px; }
