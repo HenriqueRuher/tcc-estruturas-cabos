@@ -416,8 +416,9 @@ function perfilParede(op = {}) {
   G.juntar(al, perfilEntre([-D / 2 - 50, yt, H - 260], [D / 2 + 50, yt, H - 260]));
   G.juntar(al, perfilEntre([0, yt, H - 240], [0, yt, H - 40], a * 0.8));
   G.juntar(zin, caixaEm(-30, yt + 22, H - 230, 30, yt + 42, H - 120));
-  // tábua de pé no rodapé, encostada na parede (aparece nas fotos: vai do trilho +X para o lado da mesa de pallet)
-  G.juntar(mad, caixaEm(D / 2 - 160, 2, 0, D / 2 + 400, 42, 140));
+  // tábua de pé no rodapé, à frente dos trilhos (aparece nas fotos: vai do trilho +X para o lado da mesa de pallet).
+  // Encostada na face dos trilhos (y0 + a/2), e não na parede: lá ela atravessava o pé do trilho +X.
+  G.juntar(mad, caixaEm(D / 2 - 160, y0 + a / 2 + 1, 0, D / 2 + 400, y0 + a / 2 + 41, 140));
   return {
     partes: [P('perfis', mat('aluminio'), al), P('cantoneiras', mat('zincado', { metal: 0.7, rug: 0.5 }), zin), P('fita crepe', mat('fitaPapel', { cor: [0.86, 0.84, 0.77] }), fp),
       P('barbante', mat('barbante'), barb), P('tábua', mat('madeira', { cor: [0.36, 0.25, 0.16], rug: 0.9 }), mad)],
