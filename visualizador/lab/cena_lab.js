@@ -26,7 +26,7 @@ const CONFIG = {
   // posição do perfil ao longo da parede, no sistema da sala (~5 m do portão): 272 faz os trilhos pintados
   // no panorama coincidirem com os trilhos 3D (antes 150, com a parede antiga)
   perfilNaSala: 272,
-  piso: { lado: 1200 },                      // mm cobertos por piso.jpg
+  piso: { lado: 1200, juntaFase: [264.1, 16.5] }, // mm cobertos por piso.jpg; fase (mm, sistema da sala) da grade de 300 mm no atlas assado
   // móveis do panorama que saem da cena: os marcados "antigo" em proxies.js (não existem no estado final)
   // e os que viraram modelo 3D (o pallet sobre o caixote é a mesaPallet)
   removerProxies: ['pallet', 'caixa_sobre_pallet', 'caixa_laranja', 'caixa_mochila', 'tabua_em_pe', 'mesa_pecas', 'mesa_caixote',
@@ -476,7 +476,13 @@ function montar(cena, alvo, marcadores) {
   if (window.LAB_SALA && A.sala) {
     const mat = { assado: true, textura: A.sala, ao: 1, realce: 0.15, cor: [1, 1, 1], metal: 0, rug: 1 };
     const fora = (nm) => CONFIG.removerProxies.some((r) => nm === 'proxy:' + r);
-    add('sala', { partes: window.LAB_SALA.partes.filter((p) => !fora(p.nome)).map((p) => ({ nome: p.nome, material: mat,
+    // detalhe repetível das fotos (experimento/texturas_detalhe.py) e juntas nítidas das lajotas sobre o atlas
+    const DET = {
+      piso: { ...mat, detalhe: 'img/lab/det_piso.jpg', detLado: 150, detForca: 0.75, junta: 0.3, juntaFase: CONFIG.piso.juntaFase },
+      paredes: { ...mat, detalhe: 'img/lab/det_parede.jpg', detLado: 425 },
+      teto: { ...mat, detalhe: 'img/lab/det_parede.jpg', detLado: 425, detForca: 0.6 },
+    };
+    add('sala', { partes: window.LAB_SALA.partes.filter((p) => !fora(p.nome)).map((p) => ({ nome: p.nome, material: DET[p.nome] || mat,
       pos: new Float32Array(p.pos), nor: new Float32Array(p.nor), uv: new Float32Array(p.uv), idx: new Uint32Array(p.idx) })) }, mCap);
   } else if (window.LAB_PROXIES) {
     const mat = { projetado: true, cor: [1, 1, 1], metal: 0, rug: 1 };

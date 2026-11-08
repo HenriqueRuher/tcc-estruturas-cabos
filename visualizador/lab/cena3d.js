@@ -311,14 +311,31 @@ void main() {
 const FS_ASSADO = `#version 300 es
 precision highp float;
 ${COMUM}
-in vec3 vP, vN;
+in vec3 vP, vN, vL;
 in vec2 vUV;
 uniform sampler2D uTex;
-uniform float uSombraForca, uNormalBias, uRealce, uAO;
+uniform sampler2D uDet;     // detalhe repetível (média 0,5) extraído das fotos: experimento/texturas_detalhe.py
+uniform float uSombraForca, uNormalBias, uRealce, uAO, uDetLado, uDetForca, uJunta;
+uniform vec2 uJuntaFase;    // fase da grade de lajotas de 300 mm no sistema da sala (medida no atlas)
 uniform vec3 uLuzDir;
 out vec4 saida;
 void main() {
   vec3 col = texture(uTex, vUV).rgb;
+  if (uDetForca > 0.0) {
+    // o atlas (~5 mm/px) dá cor, manchas e sombras; o detalhe acrescenta o grão de perto, no plano da face
+    vec3 nl = abs(normalize(cross(dFdx(vL), dFdy(vL))));
+    bool horiz = nl.z > 0.7;
+    vec2 st = horiz ? vL.xy : (nl.x > nl.y ? vL.yz : vL.xz);
+    col *= mix(vec3(1.0), 2.0 * texture(uDet, st / uDetLado).rgb, uDetForca);
+    if (uJunta > 0.0 && horiz) {
+      // juntas nítidas das lajotas sobre as do atlas (somem de longe, onde o atlas já basta)
+      vec2 d = abs(fract((vL.xy - uJuntaFase) / 300.0 + 0.5) - 0.5) * 300.0; // mm até a junta mais próxima
+      vec2 aa = max(fwidth(vL.xy), vec2(0.4));
+      vec2 j = 1.0 - smoothstep(vec2(1.3) - aa, vec2(1.3) + aa, d);
+      float longe = 1.0 - smoothstep(3.0, 9.0, max(aa.x, aa.y));
+      col *= 1.0 - uJunta * max(j.x, j.y) * longe;
+    }
+  }
   vec3 N = normalize(vN); if (!gl_FrontFacing) N = -N;
   col *= mix(1.0 - uSombraForca, 1.0, visLuz(vP + N * uNormalBias));
   if (uAO > 0.0) col *= mix(1.0 - 0.25 * uAO, 1.0, clamp(smoothstep(0.0, 250.0, vP.z) + step(0.7, N.z), 0.0, 1.0)); // contato com o piso
@@ -668,7 +685,9 @@ function criar(canvas, op = {}) {
     return { vao, bufs, n: parte.idx.length, cor: m.cor || [0.7, 0.7, 0.7], metal: m.metal || 0, rug: m.rug == null ? 0.5 : m.rug, emis: m.emissivo || [0, 0, 0],
       ptex: TEXTURAS[m.tex] || 0, ptexDir: m.texDir || [1, 0, 0], ptexEsc: m.texEsc || 1,
       sombra: m.sombra !== false && !proj && !assado, proj, assado, tex: m.textura ? texturaMaterial(m.textura) : null,
-      realce: m.realce || 0, ao: m.ao == null ? 0 : m.ao };
+      realce: m.realce || 0, ao: m.ao == null ? 0 : m.ao,
+      det: m.detalhe ? texturaMaterial(m.detalhe) : null, detLado: m.detLado || 300, detForca: m.detalhe ? (m.detForca == null ? 1 : m.detForca) : 0,
+      junta: m.junta || 0, juntaFase: m.juntaFase || [0, 0] };
   }
   function caixaLocal(modelo) {
     const mn = [Infinity, Infinity, Infinity], mx = [-Infinity, -Infinity, -Infinity];
@@ -863,7 +882,7 @@ function criar(canvas, op = {}) {
             gl.uniform1f(v.uNormalBias, E.sombraTexelMM * 1.5);
             gl.uniform3fv(v.uLuzDir, norm(E.luz.dir));
             uniformsSombra(v);
-            gl.uniform1i(v.uTex, 0);
+            gl.uniform1i(v.uTex, 0); gl.uniform1i(v.uDet, 1);
             gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1.0, 4.0);
             // paredes, piso e teto têm a normal para dentro: vistos de fora somem (casa de bonecas)
             gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK); gl.frontFace(gl.CCW);
@@ -872,6 +891,10 @@ function criar(canvas, op = {}) {
           if (!tem) { gl.uniformMatrix4fv(v.uM, false, o.M); gl.uniformMatrix3fv(v.uN, false, o.N); tem = true; }
           gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, p.tex ? p.tex.tex : texCinza);
           gl.uniform1f(v.uRealce, p.realce); gl.uniform1f(v.uAO, p.ao);
+          gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, p.det ? p.det.tex : texCinza);
+          gl.uniform1f(v.uDetForca, p.det && p.det.tex !== texCinza ? p.detForca : 0); gl.uniform1f(v.uDetLado, p.detLado);
+          gl.uniform1f(v.uJunta, p.junta); gl.uniform2fv(v.uJuntaFase, p.juntaFase);
+          gl.activeTexture(gl.TEXTURE0);
           gl.bindVertexArray(p.vao);
           gl.drawElements(gl.TRIANGLES, p.n, gl.UNSIGNED_INT, 0);
         }

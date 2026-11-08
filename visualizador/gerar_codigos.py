@@ -25,6 +25,15 @@ CODIGOS = {
     'forca': ('ansys/casos_forca.py', 'Casos de força concentrada', 'python'),
     'casos2d': ('ansys/casos_2d.py', 'Casos 2D', 'python'),
     'leitor': ('visualizador/experimento.js', 'Leitor da tabela do Qualisys', 'javascript'),
+    'expdados': ('experimento/comparacao/dados_experimento.py', 'Experimento · dados e eixos', 'python'),
+    'expajuste': ('experimento/comparacao/ajuste_ramos.py', 'Experimento · ajuste dos ramos', 'python'),
+    'expanalit': ('experimento/comparacao/caso_analitico.py', 'Experimento · caso analítico', 'python'),
+    'expapdl': ('ansys/experimento_corrente.inp', 'Experimento · modelo Ansys (APDL)', 'apdl'),
+    'expcomp': ('experimento/comparacao/comparar.py', 'Experimento · comparação', 'python'),
+    'expesq': ('experimento/comparacao/figura_esquema.py', 'Experimento · esquema da montagem', 'python'),
+    'rigidez': ('ansys/estudo_rigidez.py', 'Estudo da rigidez à flexão', 'python'),
+    'figmef': ('ansys/figuras_mef.py', 'Figuras do MEF', 'python'),
+    'figan': ('analitico/figuras_analiticas.py', 'Figuras analíticas', 'python'),
 }
 
 

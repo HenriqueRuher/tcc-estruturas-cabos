@@ -334,11 +334,14 @@ def figuras(Ex, Pr, aj, an, ans, mods, marc):
     ax.plot(pts[:, 0], pts[:, 1], 'D', ms=6, color=E.TINTA)
     ax.plot(*Pr['centro'][:2], 'D', ms=7, color=E.DESTAQUE)
     for n, p in zip(nomes, pts):
-        ax.annotate(n, p[:2], xytext=(5, 4), textcoords='offset points', fontsize=7.5, color=E.TINTA2)
+        # ramo B-P é quase horizontal na vista de cima: rótulos abaixo, para não encostarem em B
+        off = {'C3_01': (0, -23), 'C3_02': (0, -13), 'C3_03': (0, -13)}.get(n, (5, 4))
+        ax.annotate(n, p[:2], xytext=off, textcoords='offset points', fontsize=7.5, color=E.TINTA2,
+                    ha='center' if n.startswith('C3') else 'left', va='top' if n.startswith('C3') else 'baseline')
     for k, ramo in (('A', 'C1'), ('B', 'C3'), ('C', 'C2')):
         fx = aj['ramos'][ramo]['fixacao']
         ax.plot(fx[0], fx[1], '^', ms=9, mfc='white', mec=E.TINTA, mew=1.4)
-        ax.annotate(k, fx[:2], xytext=(-12, 4), textcoords='offset points', fontweight='bold')
+        ax.annotate(k, fx[:2], xytext=(-3, 9) if k == 'B' else (-12, 4), textcoords='offset points', fontweight='bold')
     ax.set_aspect('equal', adjustable='datalim')
     ax.set_xlabel('$X$ Qualisys [mm]')
     ax.set_ylabel('$Y$ Qualisys [mm]')
@@ -364,7 +367,7 @@ def figuras(Ex, Pr, aj, an, ans, mods, marc):
     E.salvar(fig, 'MEF_Experimento_Erros', FIGURAS)
 
     # ---- Figura 3: força axial e T0 ao longo de cada trecho no Ansys, com o analítico
-    fig, axs = E.figura(2, largura=12, altura=4.2)
+    fig, axs = E.figura(2, largura=12, altura=4.8)
     for k in TRAMOS:
         t = ans['tr'][k]
         d = np.diff(t['xyz'], axis=0)
@@ -383,7 +386,7 @@ def figuras(Ex, Pr, aj, an, ans, mods, marc):
     axs[0].legend()
     axs[1].plot([], [], '--', color=E.ANALITICO, lw=1.2, label='Analítico ($T_0$ constante)')
     axs[1].plot([], [], 'D', color=E.MUTED, label='Real: $q\\,a$ da catenária ajustada')
-    axs[1].legend(fontsize=8.5, loc='lower left')
+    axs[1].legend(fontsize=8.5, loc='upper center', bbox_to_anchor=(0.5, -0.2), ncol=3, frameon=False)
     fig.tight_layout()
     E.salvar(fig, 'MEF_Experimento_Tracao', FIGURAS)
 
